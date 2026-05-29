@@ -4,6 +4,7 @@ author: "Tianqi Ouyang"
 date: "2026-05-29"
 execute:
   eval: true
+  echo: false
   warning: false
   message: false
 ---
@@ -12,12 +13,11 @@ execute:
 
 ```{r}
 #| label: setup-onco
-# Force UTF-8 so unicode (mL/min/1.73m², ±, ↑↓, −) renders correctly.
+# Force UTF-8 so unicode (mL/min/1.73m², ±, ≥) renders correctly.
 invisible(Sys.setlocale("LC_ALL", "en_US.UTF-8"))
 
 # Lightweight install guard so the project renders on a fresh machine.
-.need <- c("readxl","dplyr","tidyr","purrr","tibble","forcats","stringr",
-           "ggplot2","scales","patchwork","flextable","officer","rvg")
+.need <- c("readxl","dplyr","tidyr","purrr","tibble","flextable","officer")
 .miss <- setdiff(.need, rownames(installed.packages()))
 if (length(.miss)) install.packages(.miss, repos = "https://cloud.r-project.org")
 
@@ -26,71 +26,23 @@ library(dplyr)
 library(tidyr)
 library(purrr)
 library(tibble)
-library(forcats)
-library(stringr)
-library(ggplot2)
-library(scales)
-library(patchwork)
 library(flextable)
-library(officer)
-library(rvg)
 
-# Output directories (under docs/ so the rendered website serves them).
+# Output directory for downloadable Word copies of every table.
 docx_dir <- "docs/tables/heatmap"
 dir.create(docx_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create("docs/pptx/heatmap", recursive = TRUE, showWarnings = FALSE)
-pptx_dir <- normalizePath("docs/pptx/heatmap", mustWork = TRUE)
-pptx_rel_prefix <- "../pptx/heatmap/"
 
-# --- Editable-PowerPoint export for every figure (mirrors jiaxuan_whole.qmd) ---
-# .plot_override$p lets a chunk force a specific object (e.g. a patchwork panel
-# pair) instead of ggplot2::last_plot(), which only tracks single ggplots.
-.pptx_written  <- new.env()
-.plot_override <- new.env()
+save_ft_docx <- function(ft, name) {
+  flextable::save_as_docx(ft, path = file.path(docx_dir, paste0(name, ".docx")))
+  invisible(ft)
+}
 
-knitr::opts_chunk$set(fig.process = function(filename) {
-  label <- knitr::opts_current$get("label")
-  if (is.null(label)) return(filename)
-  p <- if (!is.null(.plot_override$p)) .plot_override$p
-       else tryCatch(ggplot2::last_plot(), error = function(e) NULL)
-  ok <- !is.null(p) && (inherits(p, "ggplot") || inherits(p, "patchwork"))
-  if (ok) {
-    pptx_path <- file.path(pptx_dir, paste0(label, ".pptx"))
-    tryCatch({
-      doc <- officer::read_pptx()
-      doc <- officer::add_slide(doc, layout = "Title and Content",
-                                master = "Office Theme")
-      doc <- officer::ph_with(doc, rvg::dml(ggobj = p),
-                              location = officer::ph_location_type(type = "body"))
-      print(doc, target = pptx_path)
-      .pptx_written[[label]] <- paste0(pptx_rel_prefix, label, ".pptx")
-    }, error = function(e) NULL)
-  }
-  .plot_override$p <- NULL   # reset for the next chunk
-  filename
-})
-
-local({
-  default_chunk_hook <- knitr::knit_hooks$get("chunk")
-  knitr::knit_hooks$set(chunk = function(x, options) {
-    out <- default_chunk_hook(x, options)
-    label <- options$label
-    if (!is.null(label) && !is.null(.pptx_written[[label]])) {
-      rel <- .pptx_written[[label]]
-      link <- sprintf(
-        '\n\n<p style="margin-top:-0.5em;font-size:0.9em;"><a href="%s" download>📊 Download as PowerPoint (editable)</a></p>\n\n',
-        rel)
-      out <- paste0(out, link)
-    }
-    out
-  })
-})
-
-# Save a plain data frame to Word.
-save_df_docx <- function(df, docx_name) {
-  ft <- flextable::autofit(flextable::flextable(df))
-  flextable::save_as_docx(ft, path = file.path(docx_dir, paste0(docx_name, ".docx")))
-  invisible(df)
+# Traffic-light fill: green <5%, orange 5–10%, red >10% (white if NA).
+tl_color <- function(x) {
+  dplyr::case_when(is.na(x) ~ "#FFFFFF",
+                   x <  5   ~ "#92D050",
+                   x <= 10  ~ "#FFC000",
+                   TRUE     ~ "#FF0000")
 }
 ```
 
@@ -101,368 +53,353 @@ save_df_docx <- function(df, docx_name) {
 raw <- suppressWarnings(
   readxl::read_excel("Data/OncoGFR1200_MGH_chemo_CJASN.xlsx")
 )
-# Drop the two blank spacer columns Excel auto-named.
-dat <- raw %>% dplyr::select(-dplyr::any_of(c("...70", "...75")))
+dat <- raw %>%
+  dplyr::select(-dplyr::any_of(c("...70", "...75"))) %>%
+  dplyr::mutate(
+    sex     = factor(gender, levels = c(1, 2), labels = c("Male", "Female")),
+    bmi_grp = cut(BMI, breaks = c(-Inf, 20, 25, 30, Inf), right = FALSE,
+                  labels = c("<20", "20 to <25", "25 to <30", ">=30")),
+    # metastasis is complete (0/1) in this dataset — no "Unknown" level.
+    met_grp = factor(metastasis, levels = c(0, 1),
+                     labels = c("Not metastatic", "Metastatic"))
+  )
 
-# --- Equation registry: single source of truth (mGFR = reference) ---------
-# Each equation has an indexed (mL/min/1.73m²) and a non-indexed (mL/min) column.
-# Note the hyphen in "EKFCcrcysnon-index" and that CKD-EPI 4-marker's index
-# column is "CKDEPI4mark" (no "index" suffix).
-equation_registry <- tibble::tribble(
-  ~equation,       ~label,                   ~index_col,           ~nonindex_col,
-  "mGFR",          "Measured GFR",           "mGFRindex",          "mGFRnon_index",
-  "CG",            "Cockcroft-Gault",        "CGindex",            "CGnon_index",
-  "CKDEPIcr21",    "CKD-EPI Cr (2021)",      "CKDEPIcr21index",    "CKDEPIcr21non_index",
-  "CKDEPIcys",     "CKD-EPI Cys",            "CKDEPIcysindex",     "CKDEPIcysnon_index",
-  "CKDEPIcrcys21", "CKD-EPI Cr-Cys (2021)",  "CKDEPIcrcys21index", "CKDEPIcrcys21non_index",
-  "EKFCcr",        "EKFC Cr",                "EKFCcrindex",        "EKFCcrnon_index",
-  "EKFCcys",       "EKFC Cys",               "EKFCcysindex",       "EKFCcysnon_index",
-  "EKFCcrcys",     "EKFC Cr-Cys",            "EKFCcrcysindex",     "EKFCcrcysnon-index",
-  "CKDEPI4mark",   "CKD-EPI 4-marker",       "CKDEPI4mark",        "CKDEPI4marknon_index"
+# --- Equation registry: type + label + index/non-index columns -------------
+# Reference = measured GFR. Note: the creatinine CKD-EPI column is the 2021
+# (race-free) equation; the hyphen in "EKFCcrcysnon-index" is intentional.
+reg <- tibble::tribble(
+  ~equation,       ~type,        ~label,             ~index_col,           ~nonindex_col,
+  "CKDEPIcr21",    "eGFRcr",     "CKD-EPI 2021",     "CKDEPIcr21index",    "CKDEPIcr21non_index",
+  "EKFCcr",        "eGFRcr",     "EKFC 2021",        "EKFCcrindex",        "EKFCcrnon_index",
+  "CKDEPIcys",     "eGFRcys",    "CKD-EPI 2012",     "CKDEPIcysindex",     "CKDEPIcysnon_index",
+  "EKFCcys",       "eGFRcys",    "EKFC 2023",        "EKFCcysindex",       "EKFCcysnon_index",
+  "CKDEPIcrcys21", "eGFRcr-cys", "CKD-EPI 2021",     "CKDEPIcrcys21index", "CKDEPIcrcys21non_index",
+  "EKFCcrcys",     "eGFRcr-cys", "EKFC 2023",        "EKFCcrcysindex",     "EKFCcrcysnon-index",
+  "CG",            "ClCr",       "Cockcroft-Gault",  "CGindex",            "CGnon_index",
+  "CKDEPI4mark",   "Panel",      "CKD-EPI 4-marker", "CKDEPI4mark",        "CKDEPI4marknon_index"
 )
-nonref_eqs    <- equation_registry$equation[equation_registry$equation != "mGFR"]
-nonref_labels <- equation_registry$label[match(nonref_eqs, equation_registry$equation)]
+MGFR <- c(index = "mGFRindex", nonindex = "mGFRnon_index")
 
-# --- Dose-tier cutoffs (ordered: higher integer = more drug; 0 = avoid/forced) ---
-dose_tier <- function(gfr, drug) {
+# --- Dosing rules ----------------------------------------------------------
+dose_tier <- function(gfr, drug) {           # higher integer = more drug; 0 = avoid
   drug <- tolower(drug)
-  if (drug == "cisplatin") {
-    # ≥60 full(3); 50–59 −25%(2); 40–49 −50%(1); <40 avoid(0)
-    dplyr::case_when(is.na(gfr) ~ NA_real_, gfr >= 60 ~ 3, gfr >= 50 ~ 2,
-                     gfr >= 40 ~ 1, TRUE ~ 0)
-  } else if (drug == "methotrexate") {
-    # ≥100 full(2); 40–99 reduced(1); <40 avoid(0)
+  if (drug == "cisplatin")
+    dplyr::case_when(is.na(gfr) ~ NA_real_, gfr >= 60 ~ 3, gfr >= 50 ~ 2, gfr >= 40 ~ 1, TRUE ~ 0)
+  else if (drug == "methotrexate")
     dplyr::case_when(is.na(gfr) ~ NA_real_, gfr >= 100 ~ 2, gfr >= 40 ~ 1, TRUE ~ 0)
-  } else if (drug == "melphalan") {
-    # >60 full(2); 30–59 consider 140(1); <30 forced reduce(0)
+  else if (drug == "melphalan")
     dplyr::case_when(is.na(gfr) ~ NA_real_, gfr > 60 ~ 2, gfr >= 30 ~ 1, TRUE ~ 0)
-  } else stop("unknown drug: ", drug)
+  else stop("unknown drug: ", drug)
 }
-
-# Compare the equation-assigned tier with the mGFR-assigned tier.
 dose_class_tier <- function(gfr, mgfr, drug) {
   te <- dose_tier(gfr, drug); tr <- dose_tier(mgfr, drug)
   dplyr::case_when(is.na(te) | is.na(tr) ~ NA_character_,
                    te > tr ~ "Overdose", te < tr ~ "Underdose", TRUE ~ "Concordant")
 }
-
-# Carboplatin Calvert: Dose = AUC*(GFR+25), target AUC 5.
-# overdose if 5*(eGFR+25) > k_hi*(mGFR+25); underdose if < k_lo*(mGFR+25).
-# ±20% → k_hi=6,  k_lo=4   |   ±15% → k_hi=5.75, k_lo=4.25
+# Carboplatin Calvert (AUC 5): over if 5*(eGFR+25) > k_hi*(mGFR+25); under if < k_lo.
+# ±20% → k_hi=6, k_lo=4   |   ±15% → k_hi=5.75, k_lo=4.25
 carbo_class <- function(gfr, mgfr, k_hi = 6, k_lo = 4) {
-  pred <- 5 * (gfr + 25); hi <- k_hi * (mgfr + 25); lo <- k_lo * (mgfr + 25)
+  pred <- 5 * (gfr + 25)
   dplyr::case_when(is.na(gfr) | is.na(mgfr) ~ NA_character_,
-                   pred > hi ~ "Overdose", pred < lo ~ "Underdose", TRUE ~ "Concordant")
+                   pred > k_hi * (mgfr + 25) ~ "Overdose",
+                   pred < k_lo * (mgfr + 25) ~ "Underdose", TRUE ~ "Concordant")
 }
 
 TIER_DRUGS  <- c("cisplatin", "methotrexate", "melphalan")
-CARBO_BANDS <- list(b20 = c(k_hi = 6, k_lo = 4), b15 = c(k_hi = 5.75, k_lo = 4.25))
+CARBO_BANDS <- list(carboplatin_b20 = c(k_hi = 6, k_lo = 4),
+                    carboplatin_b15 = c(k_hi = 5.75, k_lo = 4.25))
 
-# Long classification table for one GFR scale. mGFR reference is taken on the
-# SAME scale as the equation it is compared against.
+# Patient-level classification (carries subgroup columns) for one GFR scale.
 build_class_long <- function(scale = c("index", "nonindex")) {
   scale  <- match.arg(scale)
   col_of <- function(eq) {
-    r <- equation_registry[equation_registry$equation == eq, ]
+    r <- reg[reg$equation == eq, ]
     if (scale == "index") r$index_col[[1]] else r$nonindex_col[[1]]
   }
-  mgfr <- dat[[col_of("mGFR")]]
-
-  tier_long <- purrr::map_dfr(nonref_eqs, function(eq) {
+  mgfr <- dat[[MGFR[[scale]]]]
+  base <- dplyr::select(dat, sex, bmi_grp, met_grp)
+  tier <- purrr::map_dfr(reg$equation, function(eq) {
     g <- dat[[col_of(eq)]]
     purrr::map_dfr(TIER_DRUGS, function(dr)
-      tibble::tibble(scale = scale, equation = eq, drug = dr,
-                     dose_class = dose_class_tier(g, mgfr, dr)))
+      dplyr::bind_cols(base, tibble::tibble(equation = eq, drug = dr,
+                                            cls = dose_class_tier(g, mgfr, dr))))
   })
-  carbo_long <- purrr::map_dfr(nonref_eqs, function(eq) {
+  carbo <- purrr::map_dfr(reg$equation, function(eq) {
     g <- dat[[col_of(eq)]]
     purrr::map_dfr(names(CARBO_BANDS), function(bn) {
       k <- CARBO_BANDS[[bn]]
-      tibble::tibble(scale = scale, equation = eq, drug = paste0("carboplatin_", bn),
-                     dose_class = carbo_class(g, mgfr, k[["k_hi"]], k[["k_lo"]]))
+      dplyr::bind_cols(base, tibble::tibble(equation = eq, drug = bn,
+                                            cls = carbo_class(g, mgfr, k[["k_hi"]], k[["k_lo"]])))
     })
   })
-  dplyr::bind_rows(tier_long, carbo_long)
+  dplyr::bind_rows(tier, carbo)
+}
+cl_index    <- build_class_long("index")
+cl_nonindex <- build_class_long("nonindex")
+
+# Internal (syntactic) column keys + their display labels.
+SUB_COLS <- c("Overall", "Female", "Male", "bmi1", "bmi2", "bmi3", "bmi4", "met_no", "met_yes")
+SUB_LABS <- c(Overall = "Overall", Female = "Female", Male = "Male",
+              bmi1 = "<20", bmi2 = "20 to <25", bmi3 = "25 to <30", bmi4 = ">=30",
+              met_no = "Not metastatic", met_yes = "Metastatic")
+
+# Build the equation × subgroup % table for one drug and direction.
+subgroup_table <- function(cl, drug_id, direction) {
+  s <- cl %>% dplyr::filter(drug == drug_id, !is.na(cls))
+  pct <- function(d) if (nrow(d)) round(mean(d$cls == direction) * 100, 1) else NA_real_
+  lvl <- function(d, col, value) pct(d[!is.na(d[[col]]) & d[[col]] == value, ])
+  per_eq <- function(eq) {
+    e <- s %>% dplyr::filter(equation == eq)
+    tibble::tibble(
+      equation         = eq,
+      Overall          = pct(e),
+      Female           = lvl(e, "sex", "Female"),
+      Male             = lvl(e, "sex", "Male"),
+      bmi1    = lvl(e, "bmi_grp", "<20"),
+      bmi2    = lvl(e, "bmi_grp", "20 to <25"),
+      bmi3    = lvl(e, "bmi_grp", "25 to <30"),
+      bmi4    = lvl(e, "bmi_grp", ">=30"),
+      met_no  = lvl(e, "met_grp", "Not metastatic"),
+      met_yes = lvl(e, "met_grp", "Metastatic")
+    )
+  }
+  purrr::map_dfr(reg$equation, per_eq) %>%
+    dplyr::left_join(dplyr::select(reg, equation, type, label), by = "equation") %>%
+    dplyr::mutate(type = factor(type, levels = unique(reg$type))) %>%
+    dplyr::arrange(type, match(equation, reg$equation)) %>%
+    dplyr::select(type, label, dplyr::all_of(SUB_COLS))
 }
 
-# Per equation × drug: % over / under / concordant + signed net (over − under).
-summarise_heat <- function(class_long) {
-  class_long %>%
-    dplyr::filter(!is.na(dose_class)) %>%
-    dplyr::group_by(scale, drug, equation) %>%
-    dplyr::summarise(n = dplyr::n(),
-                     pct_over  = mean(dose_class == "Overdose")   * 100,
-                     pct_under = mean(dose_class == "Underdose")  * 100,
-                     pct_conc  = mean(dose_class == "Concordant") * 100,
-                     .groups = "drop") %>%
-    dplyr::mutate(signed = pct_over - pct_under) %>%
-    dplyr::left_join(dplyr::select(equation_registry, equation, label), by = "equation")
+# Render one traffic-light flextable (title e.g. "OVERDOSE (%)").
+make_tl_ft <- function(tab, title) {
+  ncol_total <- length(c("type", "label", SUB_COLS))   # 11
+  ft <- flextable::flextable(tab, col_keys = c("type", "label", SUB_COLS))
+  ft <- flextable::set_header_labels(ft,
+    values = c(list(type = "eGFR type", label = "Equation"), as.list(SUB_LABS)))
+  # Group-spanner header row (Sex / BMI / Metastatic disease).
+  ft <- flextable::add_header_row(ft, top = TRUE,
+    values    = c("", "", "", "Sex", "BMI category (kg/m²)", "Metastatic disease"),
+    colwidths = c(1, 1, 1, 2, 4, 2))
+  # Title row across the whole table ("OVERDOSE (%)" / "UNDERDOSE (%)").
+  ft <- flextable::add_header_row(ft, top = TRUE, values = title, colwidths = ncol_total)
+  for (cc in SUB_COLS) ft <- flextable::bg(ft, j = cc, bg = tl_color(tab[[cc]]), part = "body")
+  ft <- flextable::merge_v(ft, j = "type", part = "body")
+  ft <- flextable::valign(ft, j = "type", valign = "top", part = "body")
+  ft <- flextable::align(ft, j = SUB_COLS, align = "center", part = "all")
+  ft <- flextable::align(ft, i = 2, align = "center", part = "header")  # spanner row
+  ft <- flextable::align(ft, i = 1, align = "left",   part = "header")  # title row
+  ft <- flextable::bold(ft, part = "header")
+  ft <- flextable::fontsize(ft, size = 9, part = "all")
+  ft <- flextable::fontsize(ft, i = 1, size = 11, part = "header")
+  # Defer column sizing to the HTML/Word renderer (layout autofit) rather than
+  # autofit(), which measures text R-side and can fail under quarto's render
+  # graphics context ("length = 2 in coercion to logical(1)").
+  flextable::set_table_properties(ft, layout = "autofit", width = 1)
 }
 
-heat_index    <- summarise_heat(build_class_long("index"))
-heat_nonindex <- summarise_heat(build_class_long("nonindex"))
-
-# --- Renderers (shared by the Index and Non-Index sections) ---------------
-make_heatmap <- function(heat_df, drugs, drug_labels, title) {
-  dh <- heat_df %>%
-    dplyr::filter(drug %in% drugs) %>%
-    dplyr::mutate(drug  = factor(drug, levels = drugs, labels = drug_labels),
-                  label = factor(label, levels = rev(nonref_labels)),
-                  cell  = sprintf("↑%.0f%%\n↓%.0f%%", pct_over, pct_under))
-  lim <- max(abs(dh$signed), na.rm = TRUE)
-  if (!is.finite(lim) || lim == 0) lim <- 1
-  ggplot(dh, aes(drug, label, fill = signed)) +
-    geom_tile(color = "white", linewidth = 0.7) +
-    geom_text(aes(label = cell), size = 3.0, lineheight = 0.9,
-              color = ifelse(abs(dh$signed) > 0.6 * lim, "white", "grey15")) +
-    scale_fill_gradient2(low = "#2166AC", mid = "#F7F7F7", high = "#B2182B",
-                         midpoint = 0, limits = c(-lim, lim),
-                         name = "Net %\n(over − under)") +
-    labs(title = title, x = NULL, y = NULL,
-         caption = "Red = net overdosing vs measured GFR · Blue = net underdosing") +
-    theme_minimal(base_size = 12) +
-    theme(panel.grid = element_blank(),
-          axis.text.x = element_text(angle = 20, hjust = 1),
-          plot.title  = element_text(face = "bold", size = 12))
+# Convenience: build + save + return a flextable for one (cl, drug, direction).
+# Returns `ft` VISIBLY (last expression) so knitr auto-prints it in the doc.
+tl <- function(cl, drug_id, direction, file) {
+  ft <- make_tl_ft(subgroup_table(cl, drug_id, direction),
+                   paste0(toupper(direction), " (%)"))
+  save_ft_docx(ft, file)
+  ft
 }
-
-.panel_one <- function(heat_df, drugs, drug_labels, value, low, high, title) {
-  dh <- heat_df %>%
-    dplyr::filter(drug %in% drugs) %>%
-    dplyr::mutate(drug  = factor(drug, levels = drugs, labels = drug_labels),
-                  label = factor(label, levels = rev(nonref_labels)),
-                  v = .data[[value]])
-  ggplot(dh, aes(drug, label, fill = v)) +
-    geom_tile(color = "white", linewidth = 0.7) +
-    geom_text(aes(label = sprintf("%.0f%%", v)), size = 3.1,
-              color = ifelse(dh$v > 50, "white", "grey15")) +
-    scale_fill_gradient(low = low, high = high, limits = c(0, 100), name = NULL) +
-    labs(title = title, x = NULL, y = NULL) +
-    theme_minimal(base_size = 11) +
-    theme(panel.grid = element_blank(),
-          axis.text.x = element_text(angle = 20, hjust = 1))
-}
-
-# Companion pair: overdose% (red) | underdose% (blue), separate scales.
-make_panels <- function(heat_df, drugs, drug_labels) {
-  p_over  <- .panel_one(heat_df, drugs, drug_labels, "pct_over",
-                        "#FFF5F0", "#B2182B", "% Overdosed")
-  p_under <- .panel_one(heat_df, drugs, drug_labels, "pct_under",
-                        "#F7FBFF", "#2166AC", "% Underdosed")
-  combined <- patchwork::wrap_plots(p_over, p_under, ncol = 2)
-  .plot_override$p <- combined   # so the pptx hook exports the full pair
-  combined
-}
-
-# Tidy % table for Word export / on-page reference.
-heat_table <- function(heat_df, drugs, drug_labels) {
-  heat_df %>%
-    dplyr::filter(drug %in% drugs) %>%
-    dplyr::mutate(drug = factor(drug, levels = drugs, labels = drug_labels)) %>%
-    dplyr::transmute(Equation = label, Drug = drug,
-                     `Overdose %`   = round(pct_over, 1),
-                     `Underdose %`  = round(pct_under, 1),
-                     `Concordant %` = round(pct_conc, 1), N = n) %>%
-    dplyr::arrange(Drug, Equation)
-}
-
-# Drug groupings used by both sections.
-drugs_carbo <- c("carboplatin_b20", "carboplatin_b15")
-labs_carbo  <- c("Carboplatin (±20%)", "Carboplatin (±15%)")
-drugs_cis   <- "cisplatin";                    labs_cis   <- "Cisplatin"
-drugs_other <- c("methotrexate", "melphalan"); labs_other <- c("Methotrexate", "Melphalan")
 ```
 
 # Overview
 
-This report quantifies how often each estimated-GFR (eGFR) equation would lead to **over- or
-under-dosing** of chemotherapy relative to **measured GFR (mGFR)** — the gold standard — in the
-OncoGFR cohort (N = 1,200). For every patient we apply each drug's kidney-function dosing rule
-using each equation, then compare the resulting dose to the dose that mGFR would prescribe.
+For every patient we compute the chemotherapy dose each **estimated-GFR (eGFR) equation** would
+prescribe and compare it to the dose that **measured GFR (mGFR, ⁵¹Cr-EDTA clearance)** — the gold
+standard — would prescribe. Each cell is the **percent of patients mis-dosed** in that subgroup:
 
-- **Overdose** (red): the equation would give *more* drug than mGFR warrants.
-- **Underdose** (blue): the equation would give *less* drug than mGFR warrants.
-- Each cell of a net heatmap shows ↑ overdose % and ↓ underdose %; the fill is the net
-  (overdose − underdose). Companion panels show the two percentages on separate scales.
+- **OVERDOSE (%)** — the equation would give *more* drug than mGFR warrants.
+- **UNDERDOSE (%)** — the equation would give *less* drug than mGFR warrants.
 
-Results are presented twice — using **indexed** GFR (mL/min/1.73 m²) and **non-indexed**
-(absolute mL/min) values — because dosing conventions differ: the Calvert carboplatin formula
-uses absolute GFR, whereas CKD-staging cutoffs use indexed GFR. **mGFR is always taken on the
-same scale as the equation it is compared against.** All 1,200 patients are used for every drug
-(a counterfactual "what dose would this equation give?" — the file has no administered doses).
+**Traffic-light colour:** <span style="background:#92D050">&nbsp;green &lt;5%&nbsp;</span> ·
+<span style="background:#FFC000">&nbsp;orange 5–10%&nbsp;</span> ·
+<span style="background:#FF0000;color:white">&nbsp;red &gt;10%&nbsp;</span>.
 
-**Dosing rules (from the eligibility cutoffs):**
+Columns give the **Overall** rate and rates within **Sex**, **BMI category**, and **Metastatic
+disease** subgroups. Results are shown on both the **indexed** (mL/min/1.73 m²) and **non-indexed**
+(absolute mL/min) GFR scale; mGFR is always taken on the same scale as the equation. All 1,200
+patients are used for every drug (a counterfactual — the file has no administered doses).
 
-| Drug | Rule |
+| Drug | Dosing rule |
 |---|---|
 | **Cisplatin** | ≥60 full · 50–59 −25% · 40–49 −50% · <40 avoid |
 | **Methotrexate** (CNS, 8 g/m²) | ≥100 full · 40–99 reduced · <40 avoid |
 | **Melphalan** (200 mg/m²) | >60 full · 30–59 → 140 mg/m² · <30 forced reduce |
 | **Carboplatin** (Calvert AUC 5) | over/under at AUC 6 / AUC 4 (±20%) and the ±15% margin |
 
+::: callout-note
+"Metastatic disease — Unknown" from the source template is omitted because metastatic status is
+complete (no missing) in this dataset. The creatinine equation shown is **CKD-EPI 2021** (the
+race-free version present in the data).
+:::
+
 # 3 Indexed GFR (mL/min/1.73 m²)
 
-## 3.1 Carboplatin (Calvert)
+## 3.1 Carboplatin (±20%)
 
 ```{r}
-#| label: idx-carbo-heat
-#| fig-width: 7
-#| fig-height: 5
-make_heatmap(heat_index, drugs_carbo, labs_carbo,
-             "Carboplatin over/under-dose vs mGFR — indexed GFR")
+#| label: idx-carbo20-over
+tl(cl_index, "carboplatin_b20", "Overdose", "index_carboplatin20_over")
 ```
 
 ```{r}
-#| label: idx-carbo-panels
-#| fig-width: 9
-#| fig-height: 5
-make_panels(heat_index, drugs_carbo, labs_carbo)
+#| label: idx-carbo20-under
+tl(cl_index, "carboplatin_b20", "Underdose", "index_carboplatin20_under")
+```
+
+[📄 Overdose table](../tables/heatmap/index_carboplatin20_over.docx) ·
+[📄 Underdose table](../tables/heatmap/index_carboplatin20_under.docx)
+
+## 3.2 Carboplatin (±15%)
+
+```{r}
+#| label: idx-carbo15-over
+tl(cl_index, "carboplatin_b15", "Overdose", "index_carboplatin15_over")
 ```
 
 ```{r}
-#| label: idx-carbo-tbl
-knitr::kable(save_df_docx(heat_table(heat_index, drugs_carbo, labs_carbo),
-                          "index_carboplatin"))
+#| label: idx-carbo15-under
+tl(cl_index, "carboplatin_b15", "Underdose", "index_carboplatin15_under")
 ```
 
-[📄 Download Word table](../tables/heatmap/index_carboplatin.docx)
+[📄 Overdose table](../tables/heatmap/index_carboplatin15_over.docx) ·
+[📄 Underdose table](../tables/heatmap/index_carboplatin15_under.docx)
 
-## 3.2 Cisplatin
+## 3.3 Cisplatin
 
 ```{r}
-#| label: idx-cis-heat
-#| fig-width: 5
-#| fig-height: 5
-make_heatmap(heat_index, drugs_cis, labs_cis,
-             "Cisplatin over/under-dose vs mGFR — indexed GFR")
+#| label: idx-cis-over
+tl(cl_index, "cisplatin", "Overdose", "index_cisplatin_over")
 ```
 
 ```{r}
-#| label: idx-cis-panels
-#| fig-width: 7
-#| fig-height: 5
-make_panels(heat_index, drugs_cis, labs_cis)
+#| label: idx-cis-under
+tl(cl_index, "cisplatin", "Underdose", "index_cisplatin_under")
+```
+
+[📄 Overdose table](../tables/heatmap/index_cisplatin_over.docx) ·
+[📄 Underdose table](../tables/heatmap/index_cisplatin_under.docx)
+
+## 3.4 Methotrexate
+
+```{r}
+#| label: idx-mtx-over
+tl(cl_index, "methotrexate", "Overdose", "index_methotrexate_over")
 ```
 
 ```{r}
-#| label: idx-cis-tbl
-knitr::kable(save_df_docx(heat_table(heat_index, drugs_cis, labs_cis),
-                          "index_cisplatin"))
+#| label: idx-mtx-under
+tl(cl_index, "methotrexate", "Underdose", "index_methotrexate_under")
 ```
 
-[📄 Download Word table](../tables/heatmap/index_cisplatin.docx)
+[📄 Overdose table](../tables/heatmap/index_methotrexate_over.docx) ·
+[📄 Underdose table](../tables/heatmap/index_methotrexate_under.docx)
 
-## 3.3 Other Drugs (Methotrexate, Melphalan)
+## 3.5 Melphalan
 
 ```{r}
-#| label: idx-other-heat
-#| fig-width: 6
-#| fig-height: 5
-make_heatmap(heat_index, drugs_other, labs_other,
-             "Methotrexate & Melphalan over/under-dose vs mGFR — indexed GFR")
+#| label: idx-melph-over
+tl(cl_index, "melphalan", "Overdose", "index_melphalan_over")
 ```
 
 ```{r}
-#| label: idx-other-panels
-#| fig-width: 9
-#| fig-height: 5
-make_panels(heat_index, drugs_other, labs_other)
+#| label: idx-melph-under
+tl(cl_index, "melphalan", "Underdose", "index_melphalan_under")
 ```
 
-```{r}
-#| label: idx-other-tbl
-knitr::kable(save_df_docx(heat_table(heat_index, drugs_other, labs_other),
-                          "index_other"))
-```
-
-[📄 Download Word table](../tables/heatmap/index_other.docx)
+[📄 Overdose table](../tables/heatmap/index_melphalan_over.docx) ·
+[📄 Underdose table](../tables/heatmap/index_melphalan_under.docx)
 
 # 4 Non-Indexed GFR (absolute mL/min)
 
-## 4.1 Carboplatin (Calvert)
+## 4.1 Carboplatin (±20%)
 
 ```{r}
-#| label: nix-carbo-heat
-#| fig-width: 7
-#| fig-height: 5
-make_heatmap(heat_nonindex, drugs_carbo, labs_carbo,
-             "Carboplatin over/under-dose vs mGFR — non-indexed GFR")
+#| label: nix-carbo20-over
+tl(cl_nonindex, "carboplatin_b20", "Overdose", "nonindex_carboplatin20_over")
 ```
 
 ```{r}
-#| label: nix-carbo-panels
-#| fig-width: 9
-#| fig-height: 5
-make_panels(heat_nonindex, drugs_carbo, labs_carbo)
+#| label: nix-carbo20-under
+tl(cl_nonindex, "carboplatin_b20", "Underdose", "nonindex_carboplatin20_under")
+```
+
+[📄 Overdose table](../tables/heatmap/nonindex_carboplatin20_over.docx) ·
+[📄 Underdose table](../tables/heatmap/nonindex_carboplatin20_under.docx)
+
+## 4.2 Carboplatin (±15%)
+
+```{r}
+#| label: nix-carbo15-over
+tl(cl_nonindex, "carboplatin_b15", "Overdose", "nonindex_carboplatin15_over")
 ```
 
 ```{r}
-#| label: nix-carbo-tbl
-knitr::kable(save_df_docx(heat_table(heat_nonindex, drugs_carbo, labs_carbo),
-                          "nonindex_carboplatin"))
+#| label: nix-carbo15-under
+tl(cl_nonindex, "carboplatin_b15", "Underdose", "nonindex_carboplatin15_under")
 ```
 
-[📄 Download Word table](../tables/heatmap/nonindex_carboplatin.docx)
+[📄 Overdose table](../tables/heatmap/nonindex_carboplatin15_over.docx) ·
+[📄 Underdose table](../tables/heatmap/nonindex_carboplatin15_under.docx)
 
-## 4.2 Cisplatin
+## 4.3 Cisplatin
 
 ```{r}
-#| label: nix-cis-heat
-#| fig-width: 5
-#| fig-height: 5
-make_heatmap(heat_nonindex, drugs_cis, labs_cis,
-             "Cisplatin over/under-dose vs mGFR — non-indexed GFR")
+#| label: nix-cis-over
+tl(cl_nonindex, "cisplatin", "Overdose", "nonindex_cisplatin_over")
 ```
 
 ```{r}
-#| label: nix-cis-panels
-#| fig-width: 7
-#| fig-height: 5
-make_panels(heat_nonindex, drugs_cis, labs_cis)
+#| label: nix-cis-under
+tl(cl_nonindex, "cisplatin", "Underdose", "nonindex_cisplatin_under")
+```
+
+[📄 Overdose table](../tables/heatmap/nonindex_cisplatin_over.docx) ·
+[📄 Underdose table](../tables/heatmap/nonindex_cisplatin_under.docx)
+
+## 4.4 Methotrexate
+
+```{r}
+#| label: nix-mtx-over
+tl(cl_nonindex, "methotrexate", "Overdose", "nonindex_methotrexate_over")
 ```
 
 ```{r}
-#| label: nix-cis-tbl
-knitr::kable(save_df_docx(heat_table(heat_nonindex, drugs_cis, labs_cis),
-                          "nonindex_cisplatin"))
+#| label: nix-mtx-under
+tl(cl_nonindex, "methotrexate", "Underdose", "nonindex_methotrexate_under")
 ```
 
-[📄 Download Word table](../tables/heatmap/nonindex_cisplatin.docx)
+[📄 Overdose table](../tables/heatmap/nonindex_methotrexate_over.docx) ·
+[📄 Underdose table](../tables/heatmap/nonindex_methotrexate_under.docx)
 
-## 4.3 Other Drugs (Methotrexate, Melphalan)
+## 4.5 Melphalan
 
 ```{r}
-#| label: nix-other-heat
-#| fig-width: 6
-#| fig-height: 5
-make_heatmap(heat_nonindex, drugs_other, labs_other,
-             "Methotrexate & Melphalan over/under-dose vs mGFR — non-indexed GFR")
+#| label: nix-melph-over
+tl(cl_nonindex, "melphalan", "Overdose", "nonindex_melphalan_over")
 ```
 
 ```{r}
-#| label: nix-other-panels
-#| fig-width: 9
-#| fig-height: 5
-make_panels(heat_nonindex, drugs_other, labs_other)
+#| label: nix-melph-under
+tl(cl_nonindex, "melphalan", "Underdose", "nonindex_melphalan_under")
 ```
 
-```{r}
-#| label: nix-other-tbl
-knitr::kable(save_df_docx(heat_table(heat_nonindex, drugs_other, labs_other),
-                          "nonindex_other"))
-```
-
-[📄 Download Word table](../tables/heatmap/nonindex_other.docx)
+[📄 Overdose table](../tables/heatmap/nonindex_melphalan_over.docx) ·
+[📄 Underdose table](../tables/heatmap/nonindex_melphalan_under.docx)
 
 # 5 Notes
 
-- **Reference.** Measured GFR (⁵¹Cr-EDTA clearance) is the gold standard; each eGFR equation is
-  compared to mGFR on the matching scale (indexed vs indexed, non-indexed vs non-indexed).
-- **Scale matters.** Calvert carboplatin dosing was derived on **absolute (non-indexed)** GFR, so
-  Section 4 is the clinically conventional view for carboplatin; the indexed view (Section 3) is
-  shown for completeness and is the conventional scale for CKD-staging cutoffs.
-- **Cystatin-based equations** (CKD-EPI Cys, EKFC Cys) typically diverge most from mGFR.
-- **Counterfactual.** The dataset records no administered doses, so every drug's rule is applied
-  to all 1,200 patients to estimate misclassification rates, not actual prescribing errors.
-- **Out of scope here** (different datasets): body-composition (skeletal-muscle / adiposity) and
-  adverse-event association analyses described in the paper outline.
+- **Reference.** Measured GFR (⁵¹Cr-EDTA) is the gold standard; each equation is compared to mGFR on
+  the matching scale (indexed vs indexed, non-indexed vs non-indexed).
+- **Scale.** Calvert carboplatin dosing was derived on **absolute (non-indexed)** GFR (Section 4 is
+  the clinically conventional view for carboplatin); indexed GFR (Section 3) is the conventional
+  scale for CKD-staging cutoffs.
+- **Direction.** Creatinine-based equations tend to **overdose** (they overestimate GFR, especially
+  at low BMI / low muscle mass); cystatin-based equations tend to **underdose**.
+- **Counterfactual.** No administered doses exist in this file, so every drug rule is applied to all
+  1,200 patients to estimate misclassification rates, not actual prescribing errors.
