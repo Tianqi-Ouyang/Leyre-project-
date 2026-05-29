@@ -225,18 +225,79 @@ disease** subgroups. Results are shown on both the **indexed** (mL/min/1.73 m²)
 (absolute mL/min) GFR scale; mGFR is always taken on the same scale as the equation. All 1,200
 patients are used for every drug (a counterfactual — the file has no administered doses).
 
-| Drug | Dosing rule |
-|---|---|
-| **Cisplatin** | ≥60 full · 50–59 −25% · 40–49 −50% · <40 avoid |
-| **Methotrexate** (CNS, 8 g/m²) | ≥100 full · 40–99 reduced · <40 avoid |
-| **Melphalan** (200 mg/m²) | >60 full · 30–59 → 140 mg/m² · <30 forced reduce |
-| **Carboplatin** (Calvert AUC 5) | over/under at AUC 6 / AUC 4 (±20%) and the ±15% margin |
+**Dosing rules** — one row per GFR band. *Tier* is the ordered dose code used internally
+(higher = more drug; 0 = avoid / forced reduce).
+
+| Drug | GFR (mL/min) | Dose | Tier |
+|---|---|---|:--:|
+| **Cisplatin** | ≥ 60 | Full dose | 3 |
+| **Cisplatin** | 50 – 59 | −25 % | 2 |
+| **Cisplatin** | 40 – 49 | −50 % | 1 |
+| **Cisplatin** | < 40 | Avoid | 0 |
+| **Methotrexate** (CNS, 8 g/m²) | ≥ 100 | Full dose | 2 |
+| **Methotrexate** (CNS, 8 g/m²) | 40 – 99 | Reduced (proportional) | 1 |
+| **Methotrexate** (CNS, 8 g/m²) | < 40 | Avoid | 0 |
+| **Melphalan** (200 mg/m²) | > 60 | Full, 200 mg/m² | 2 |
+| **Melphalan** (200 mg/m²) | 30 – 59 | 140 mg/m² | 1 |
+| **Melphalan** (200 mg/m²) | < 30 | Forced reduce, 140 mg/m² | 0 |
+| **Carboplatin** (Calvert, AUC 5) | continuous | Dose = AUC × (GFR + 25) | — |
+| **Carboplatin** — overdose | — | eq. dose > mGFR dose at AUC 6 (+20 %) / AUC 5.75 (+15 %) | — |
+| **Carboplatin** — underdose | — | eq. dose < mGFR dose at AUC 4 (−20 %) / AUC 4.25 (−15 %) | — |
 
 ::: callout-note
 "Metastatic disease — Unknown" from the source template is omitted because metastatic status is
 complete (no missing) in this dataset. The creatinine equation shown is **CKD-EPI 2021** (the
 race-free version present in the data).
 :::
+
+# Variable codebook
+
+Every field used to build the tables. **Inputs** are columns read from
+`OncoGFR1200_MGH_chemo_CJASN.xlsx` (N = 1,200); **derived** fields are computed in this analysis.
+
+### Kidney-function inputs (eGFR / mGFR)
+
+Each equation is stored twice — an **index** column (mL/min/1.73 m², BSA-normalised) and a
+**non-index** column (absolute mL/min ≈ indexed × BSA ⁄ 1.73). Measured GFR is the reference all
+equations are compared against; comparisons are made on the matching scale.
+
+| eGFR type | Equation (label) | Index column | Non-index column |
+|---|---|---|---|
+| reference | Measured GFR (⁵¹Cr-EDTA) | `mGFRindex` | `mGFRnon_index` |
+| eGFRcr | CKD-EPI 2021 (creatinine) | `CKDEPIcr21index` | `CKDEPIcr21non_index` |
+| eGFRcr | EKFC 2021 (creatinine) | `EKFCcrindex` | `EKFCcrnon_index` |
+| eGFRcys | CKD-EPI 2012 (cystatin C) | `CKDEPIcysindex` | `CKDEPIcysnon_index` |
+| eGFRcys | EKFC 2023 (cystatin C) | `EKFCcysindex` | `EKFCcysnon_index` |
+| eGFRcr-cys | CKD-EPI 2021 (Cr–Cys) | `CKDEPIcrcys21index` | `CKDEPIcrcys21non_index` |
+| eGFRcr-cys | EKFC 2023 (Cr–Cys) | `EKFCcrcysindex` | `EKFCcrcysnon-index` |
+| ClCr | Cockcroft–Gault | `CGindex` | `CGnon_index` |
+| Panel | CKD-EPI 4-marker (Cr, Cys, β2M, BTP) | `CKDEPI4mark` | `CKDEPI4marknon_index` |
+
+*Underlying labs (`Cr`, `CysC`, `B2M`, `BTP`) and anthropometrics (`weight`, `height`, `BSA`,
+`age`, `gender`) were used upstream to compute these equation values; this analysis reads only the
+equation columns plus `gender`, `BMI`, and `metastasis` (below).*
+
+### Subgroup variables (table columns)
+
+| Derived field | Source column | Levels / definition |
+|---|---|---|
+| `Overall` | — | all 1,200 patients |
+| `sex` | `gender` (1, 2) | Male (1); Female (2) |
+| `bmi_grp` | `BMI` (kg/m²) | `<20`; `20 to <25`; `25 to <30`; `≥30` |
+| `met_grp` | `metastasis` (0, 1) | Not metastatic (0); Metastatic (1) |
+
+### Computed classification fields
+
+| Field | Values | Meaning |
+|---|---|---|
+| `drug` | `cisplatin`, `methotrexate`, `melphalan`, `carboplatin_b20`, `carboplatin_b15` | dosing rule applied (`b20`/`b15` = ±20 % / ±15 % Calvert band) |
+| `dose_tier` | 0–3 | ordered dose level from the rule (see *Dosing rules*); higher = more drug, 0 = avoid |
+| `dose_class` (`cls`) | Overdose / Underdose / Concordant | equation's tier vs mGFR's tier (Calvert band for carboplatin) |
+| `pct_over` | 0–100 | % of the subgroup classified Overdose → **OVERDOSE (%)** cells |
+| `pct_under` | 0–100 | % of the subgroup classified Underdose → **UNDERDOSE (%)** cells |
+| `equation` / `type` / `label` | — | equation id / eGFR family / display name (see table above) |
+
+Cell colour (both directions): green < 5 % · orange 5–10 % · red > 10 %.
 
 # 3 Indexed GFR (mL/min/1.73 m²)
 
