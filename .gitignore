@@ -1,0 +1,17 @@
+.DS_Store
+.Rhistory
+.RData
+.Rproj.user/
+/.quarto/
+# Knitr intermediate (rendered figures live under docs/ and ARE committed)
+*.knit.md
+*.xlsx
+*.xls
+*.rds
+~$*
+# Patient-level source data is never pushed
+Data/
+# Unpublished manuscript / source docs at repo root (rendered docs/*.docx ARE kept)
+/*.docx
+
+**/*.quarto_ipynb

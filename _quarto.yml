@@ -1,0 +1,33 @@
+project:
+  type: website
+  output-dir: docs
+  render:
+    - index.qmd
+    - qmd/dosing_heatmap.qmd
+
+website:
+  title: "OncoGFR: eGFR vs Measured GFR — Chemo Dosing"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Summary
+      - href: qmd/dosing_heatmap.qmd
+        text: Dosing Heatmaps
+
+format:
+  html:
+    theme:
+      - lumen
+      - custom.scss
+    toc: true
+    toc-depth: 3
+    code-fold: true
+
+execute:
+  eval: true
+  warning: false
+  message: false
+
+knitr:
+  opts_knit:
+    root.dir: "/Users/to909/Desktop/Meg/Dose Leyre/Body comp data"

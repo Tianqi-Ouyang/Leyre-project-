@@ -1,0 +1,24 @@
+---
+title: "OncoGFR 1200 — Chemotherapy Dosing by eGFR Equation"
+---
+
+## Overview
+
+A sub-analysis of the dose project using the **OncoGFR 1200** cohort, which uniquely
+includes a **measured GFR (mGFR, ⁵¹Cr-EDTA plasma clearance)** as the gold standard.
+
+The analysis asks: *if chemotherapy were dosed from each estimated-GFR (eGFR) equation
+instead of measured GFR, how often would patients be over- or under-dosed?* Results are
+presented as **heatmaps** across equations and drugs, on both **indexed** (mL/min/1.73 m²)
+and **non-indexed** (absolute mL/min) GFR scales.
+
+- [**Dosing Heatmaps →**](qmd/dosing_heatmap.qmd)
+
+### eGFR equations compared (reference = measured GFR)
+
+Cockcroft-Gault · CKD-EPI Cr (2021) · CKD-EPI Cys · CKD-EPI Cr-Cys (2021) ·
+EKFC Cr · EKFC Cys · EKFC Cr-Cys · CKD-EPI 4-marker
+
+### Drugs
+
+Carboplatin (Calvert, ±15 % and ±20 % margins) · Cisplatin · Methotrexate · Melphalan
