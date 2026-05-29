@@ -231,18 +231,18 @@ patients are used for every drug (a counterfactual — the file has no administe
 | Drug | GFR (mL/min) | Dose | Tier |
 |---|---|---|:--:|
 | **Cisplatin** | ≥ 60 | Full dose | 3 |
-| **Cisplatin** | 50 – 59 | −25 % | 2 |
-| **Cisplatin** | 40 – 49 | −50 % | 1 |
-| **Cisplatin** | < 40 | Avoid | 0 |
+|  | 50 – 59 | −25 % | 2 |
+|  | 40 – 49 | −50 % | 1 |
+|  | < 40 | Avoid | 0 |
 | **Methotrexate** (CNS, 8 g/m²) | ≥ 100 | Full dose | 2 |
-| **Methotrexate** (CNS, 8 g/m²) | 40 – 99 | Reduced (proportional) | 1 |
-| **Methotrexate** (CNS, 8 g/m²) | < 40 | Avoid | 0 |
+|  | 40 – 99 | Reduced (proportional) | 1 |
+|  | < 40 | Avoid | 0 |
 | **Melphalan** (200 mg/m²) | > 60 | Full, 200 mg/m² | 2 |
-| **Melphalan** (200 mg/m²) | 30 – 59 | 140 mg/m² | 1 |
-| **Melphalan** (200 mg/m²) | < 30 | Forced reduce, 140 mg/m² | 0 |
+|  | 30 – 59 | 140 mg/m² | 1 |
+|  | < 30 | Forced reduce, 140 mg/m² | 0 |
 | **Carboplatin** (Calvert, AUC 5) | continuous | Dose = AUC × (GFR + 25) | — |
-| **Carboplatin** — overdose | — | eq. dose > mGFR dose at AUC 6 (+20 %) / AUC 5.75 (+15 %) | — |
-| **Carboplatin** — underdose | — | eq. dose < mGFR dose at AUC 4 (−20 %) / AUC 4.25 (−15 %) | — |
+|  |  | **Overdose:** eq. dose > mGFR dose at AUC 6 (+20 %) / 5.75 (+15 %) | — |
+|  |  | **Underdose:** eq. dose < mGFR dose at AUC 4 (−20 %) / 4.25 (−15 %) | — |
 
 ::: callout-note
 "Metastatic disease — Unknown" from the source template is omitted because metastatic status is
