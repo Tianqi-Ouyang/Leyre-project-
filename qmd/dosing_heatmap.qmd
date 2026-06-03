@@ -216,9 +216,12 @@ standard — would prescribe. Each cell is the **percent of patients mis-dosed**
 - **OVERDOSE (%)** — the equation would give *more* drug than mGFR warrants.
 - **UNDERDOSE (%)** — the equation would give *less* drug than mGFR warrants.
 
-**Traffic-light colour:** <span style="background:#92D050">&nbsp;green &lt;5%&nbsp;</span> ·
-<span style="background:#FFC000">&nbsp;orange 5–10%&nbsp;</span> ·
-<span style="background:#FF0000;color:white">&nbsp;red &gt;10%&nbsp;</span>.
+**Traffic-light colour** — the number in each cell is the **share of patients in that subgroup
+whose dose would be wrong in that direction** (over- or under-dosed vs mGFR), coloured
+<span style="background:#92D050">&nbsp;green &lt; 5 %&nbsp;</span> ·
+<span style="background:#FFC000">&nbsp;orange 5–10 %&nbsp;</span> ·
+<span style="background:#FF0000;color:white">&nbsp;red &gt; 10 %&nbsp;</span>. The 5 % / 10 % breaks
+are a chosen reporting convention (good / caution / concerning), not a fixed guideline.
 
 Columns give the **Overall** rate and rates within **Sex**, **BMI category**, and **Metastatic
 disease** subgroups. Results are shown on both the **indexed** (mL/min/1.73 m²) and **non-indexed**
@@ -240,9 +243,27 @@ patients are used for every drug (a counterfactual — the file has no administe
 | **Melphalan** (200 mg/m²) | > 60 | Full, 200 mg/m² | 2 |
 |  | 30 – 59 | 140 mg/m² | 1 |
 |  | < 30 | Forced reduce, 140 mg/m² | 0 |
-| **Carboplatin** (Calvert, AUC 5) | continuous | Dose = AUC × (GFR + 25) | — |
-|  |  | **Overdose:** eq. dose > mGFR dose at AUC 6 (+20 %) / 5.75 (+15 %) | — |
-|  |  | **Underdose:** eq. dose < mGFR dose at AUC 4 (−20 %) / 4.25 (−15 %) | — |
+| **Carboplatin** (Calvert) | continuous (AUC) | dose = target AUC × (GFR + 25), target AUC 5; over-/under-dose set by a ±20 % or ±15 % band — **see note below** | — |
+
+::: callout-note
+## How carboplatin over- and under-dosing are defined
+
+Carboplatin is **not** dosed in GFR tiers like the other three drugs — it is dosed to a target drug
+exposure with the **Calvert formula**: **dose (mg) = target AUC × (GFR + 25)**, with target
+**AUC = 5**. Because the dose is *directly proportional* to the GFR entered, plugging an eGFR
+equation into the formula instead of the true (measured) GFR changes the dose by the **same
+percentage** that the equation mis-estimates GFR. We flag only a *clinically meaningful* error,
+using a tolerance band around the AUC-5 target:
+
+- **Overdose** — the eGFR-based dose is larger than the dose from **measured GFR at AUC 6**. Since
+  AUC 6 is 20 % above AUC 5, the equation would deliver **> 20 % too much** carboplatin.
+- **Underdose** — the eGFR-based dose is smaller than the dose from **measured GFR at AUC 4** (20 %
+  below AUC 5) → **> 20 % too little**.
+
+That ±20 % band is reported as **`carboplatin_b20`**; **`carboplatin_b15`** repeats the same test
+with a tighter **±15 %** band (AUC 5.75 and 4.25). Both are shown because the analysis plan asked
+for 15 % and 20 % thresholds. (These definitions come from the eligibility-cutoffs document.)
+:::
 
 ::: callout-note
 "Metastatic disease — Unknown" from the source template is omitted because metastatic status is
@@ -290,7 +311,7 @@ equation columns plus `gender`, `BMI`, and `metastasis` (below).*
 
 | Field | Values | Meaning |
 |---|---|---|
-| `drug` | `cisplatin`, `methotrexate`, `melphalan`, `carboplatin_b20`, `carboplatin_b15` | dosing rule applied (`b20`/`b15` = ±20 % / ±15 % Calvert band) |
+| `drug` | `cisplatin`, `methotrexate`, `melphalan`, `carboplatin_b20`, `carboplatin_b15` | which drug's dosing rule was applied. `carboplatin_b20` and `carboplatin_b15` are the **same** carboplatin analysis run with a ±20 % vs ±15 % tolerance band (see the carboplatin note under *Overview*). |
 | `dose_tier` | 0–3 | ordered dose level from the rule (see *Dosing rules*); higher = more drug, 0 = avoid |
 | `dose_class` (`cls`) | Overdose / Underdose / Concordant | equation's tier vs mGFR's tier (Calvert band for carboplatin) |
 | `pct_over` | 0–100 | % of the subgroup classified Overdose → **OVERDOSE (%)** cells |
