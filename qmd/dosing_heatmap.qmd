@@ -31,18 +31,37 @@ library(flextable)
 # Output directory for downloadable Word copies of every table.
 docx_dir <- "docs/tables/heatmap"
 dir.create(docx_dir, recursive = TRUE, showWarnings = FALSE)
+# Absolute path: flextable_to_rmd() can change the working directory mid-render,
+# which would break later saves to a relative docx_dir.
+docx_dir <- normalizePath(docx_dir, mustWork = TRUE)
 
 save_ft_docx <- function(ft, name) {
   flextable::save_as_docx(ft, path = file.path(docx_dir, paste0(name, ".docx")))
   invisible(ft)
 }
 
-# Traffic-light fill: green <5%, orange 5–10%, red >10% (white if NA).
-tl_color <- function(x) {
+# --- Two colouring schemes -------------------------------------------------
+# V1: 4-level categorical severity.  <5 yellow · 5–10 orange · 10–20 red · >20 purple.
+cat4_fill <- function(x) {
   dplyr::case_when(is.na(x) ~ "#FFFFFF",
-                   x <  5   ~ "#92D050",
-                   x <= 10  ~ "#FFC000",
-                   TRUE     ~ "#FF0000")
+                   x <  5  ~ "#FFEDA0",   # yellow
+                   x < 10  ~ "#FEB24C",   # orange
+                   x <= 20 ~ "#F03B20",   # red
+                   TRUE    ~ "#6A51A3")   # purple
+}
+
+# V2: continuous white (0 %) -> `high`, saturating at `dom` %. (base grDevices,
+# no extra dependency). The exact % is printed in every cell.
+ramp_fill <- function(x, high, dom = 30) {
+  f   <- grDevices::colorRamp(c("#FFFFFF", high))
+  x2  <- pmin(pmax(x, 0), dom) / dom
+  out <- rep("#FFFFFF", length(x))
+  ok  <- !is.na(x2)
+  if (any(ok)) {
+    m <- f(x2[ok])
+    out[ok] <- grDevices::rgb(m[, 1], m[, 2], m[, 3], maxColorValue = 255)
+  }
+  out
 }
 ```
 
@@ -61,7 +80,8 @@ dat <- raw %>%
                   labels = c("<20", "20 to <25", "25 to <30", ">=30")),
     # metastasis is complete (0/1) in this dataset — no "Unknown" level.
     met_grp = factor(metastasis, levels = c(0, 1),
-                     labels = c("Not metastatic", "Metastatic"))
+                     labels = c("Not metastatic", "Metastatic")),
+    age_grp = factor(ifelse(age >= 70, ">=70", "<70"), levels = c("<70", ">=70"))
   )
 
 # --- Equation registry: type + label + index/non-index columns -------------
@@ -117,7 +137,7 @@ build_class_long <- function(scale = c("index", "nonindex")) {
     if (scale == "index") r$index_col[[1]] else r$nonindex_col[[1]]
   }
   mgfr <- dat[[MGFR[[scale]]]]
-  base <- dplyr::select(dat, sex, bmi_grp, met_grp)
+  base <- dplyr::select(dat, sex, bmi_grp, met_grp, age_grp)
   tier <- purrr::map_dfr(reg$equation, function(eq) {
     g <- dat[[col_of(eq)]]
     purrr::map_dfr(TIER_DRUGS, function(dr)
@@ -138,10 +158,12 @@ cl_index    <- build_class_long("index")
 cl_nonindex <- build_class_long("nonindex")
 
 # Internal (syntactic) column keys + their display labels.
-SUB_COLS <- c("Overall", "Female", "Male", "bmi1", "bmi2", "bmi3", "bmi4", "met_no", "met_yes")
+SUB_COLS <- c("Overall", "Female", "Male", "bmi1", "bmi2", "bmi3", "bmi4",
+              "met_no", "met_yes", "age_lt70", "age_ge70")
 SUB_LABS <- c(Overall = "Overall", Female = "Female", Male = "Male",
               bmi1 = "<20", bmi2 = "20 to <25", bmi3 = "25 to <30", bmi4 = ">=30",
-              met_no = "Not metastatic", met_yes = "Metastatic")
+              met_no = "Not metastatic", met_yes = "Metastatic",
+              age_lt70 = "<70", age_ge70 = "≥70")
 
 # Build the equation × subgroup % table for one drug and direction.
 subgroup_table <- function(cl, drug_id, direction) {
@@ -159,8 +181,10 @@ subgroup_table <- function(cl, drug_id, direction) {
       bmi2    = lvl(e, "bmi_grp", "20 to <25"),
       bmi3    = lvl(e, "bmi_grp", "25 to <30"),
       bmi4    = lvl(e, "bmi_grp", ">=30"),
-      met_no  = lvl(e, "met_grp", "Not metastatic"),
-      met_yes = lvl(e, "met_grp", "Metastatic")
+      met_no   = lvl(e, "met_grp", "Not metastatic"),
+      met_yes  = lvl(e, "met_grp", "Metastatic"),
+      age_lt70 = lvl(e, "age_grp", "<70"),
+      age_ge70 = lvl(e, "age_grp", ">=70")
     )
   }
   purrr::map_dfr(reg$equation, per_eq) %>%
@@ -170,19 +194,27 @@ subgroup_table <- function(cl, drug_id, direction) {
     dplyr::select(type, label, dplyr::all_of(SUB_COLS))
 }
 
-# Render one traffic-light flextable (title e.g. "OVERDOSE (%)").
-make_tl_ft <- function(tab, title) {
+# Render one heatmap flextable. `fill_fn(v)` -> per-cell hex; `dark_fn(v)` -> TRUE
+# where the fill is dark enough to need white text.
+make_tl_ft <- function(tab, title, fill_fn, dark_fn) {
   ncol_total <- length(c("type", "label", SUB_COLS))   # 11
   ft <- flextable::flextable(tab, col_keys = c("type", "label", SUB_COLS))
   ft <- flextable::set_header_labels(ft,
     values = c(list(type = "eGFR type", label = "Equation"), as.list(SUB_LABS)))
   # Group-spanner header row (Sex / BMI / Metastatic disease).
   ft <- flextable::add_header_row(ft, top = TRUE,
-    values    = c("", "", "", "Sex", "BMI category (kg/m²)", "Metastatic disease"),
-    colwidths = c(1, 1, 1, 2, 4, 2))
+    values    = c("", "", "", "Sex", "BMI category (kg/m²)", "Metastatic disease", "Age (years)"),
+    colwidths = c(1, 1, 1, 2, 4, 2, 2))
   # Title row across the whole table ("OVERDOSE (%)" / "UNDERDOSE (%)").
   ft <- flextable::add_header_row(ft, top = TRUE, values = title, colwidths = ncol_total)
-  for (cc in SUB_COLS) ft <- flextable::bg(ft, j = cc, bg = tl_color(tab[[cc]]), part = "body")
+  for (cc in SUB_COLS) {
+    v  <- tab[[cc]]
+    ft <- flextable::bg(ft, j = cc, bg = fill_fn(v), part = "body")
+    # white text on dark cells — scalar colour on specific rows (avoids a
+    # vectorised colour arg, which is fragile under R 4.4).
+    dark <- which(dark_fn(v))
+    if (length(dark)) ft <- flextable::color(ft, i = dark, j = cc, color = "white", part = "body")
+  }
   ft <- flextable::merge_v(ft, j = "type", part = "body")
   ft <- flextable::valign(ft, j = "type", valign = "top", part = "body")
   ft <- flextable::align(ft, j = SUB_COLS, align = "center", part = "all")
@@ -191,19 +223,48 @@ make_tl_ft <- function(tab, title) {
   ft <- flextable::bold(ft, part = "header")
   ft <- flextable::fontsize(ft, size = 9, part = "all")
   ft <- flextable::fontsize(ft, i = 1, size = 11, part = "header")
-  # Defer column sizing to the HTML/Word renderer (layout autofit) rather than
-  # autofit(), which measures text R-side and can fail under quarto's render
-  # graphics context ("length = 2 in coercion to logical(1)").
-  flextable::set_table_properties(ft, layout = "autofit", width = 1)
+  flextable::set_table_properties(ft, layout = "autofit", width = 1)  # renderer-side sizing
 }
 
-# Convenience: build + save + return a flextable for one (cl, drug, direction).
-# Returns `ft` VISIBLY (last expression) so knitr auto-prints it in the doc.
-tl <- function(cl, drug_id, direction, file) {
-  ft <- make_tl_ft(subgroup_table(cl, drug_id, direction),
-                   paste0(toupper(direction), " (%)"))
-  save_ft_docx(ft, file)
-  ft
+# Build the flextable for one (cl, drug, direction) under colour scheme `version`.
+build_ft <- function(cl, drug_id, direction, version) {
+  tab   <- subgroup_table(cl, drug_id, direction)
+  title <- paste0(toupper(direction), " (%)")
+  if (version == "cat") {
+    fill_fn <- cat4_fill
+    dark_fn <- function(x) !is.na(x) & x >= 10            # red & purple -> white text
+  } else {
+    fill_fn <- function(x) ramp_fill(x, "#B2182B", 30)    # continuous, saturate at 30 %
+    dark_fn <- function(x) !is.na(x) & x > 18
+  }
+  make_tl_ft(tab, title, fill_fn, dark_fn)
+}
+
+DRUGS <- list(
+  list(id = "carboplatin_b20", lab = "Carboplatin (±20%)"),
+  list(id = "carboplatin_b15", lab = "Carboplatin (±15%)"),
+  list(id = "cisplatin",       lab = "Cisplatin"),
+  list(id = "methotrexate",    lab = "Methotrexate"),
+  list(id = "melphalan",       lab = "Melphalan")
+)
+
+# Emit every drug × direction for one scale/version (call inside a results='asis'
+# chunk). Saves each table to Word and prints it with a download link.
+emit_scale <- function(cl, version, scale, scale_label) {
+  cat("\n\n### ", scale_label, "\n\n", sep = "")
+  for (d in DRUGS) {
+    cat("\n\n#### ", d$lab, "\n\n", sep = "")
+    for (dir in c("Overdose", "Underdose")) {
+      fname <- paste0(version, "_", scale, "_", d$id, "_", tolower(dir))
+      ft <- build_ft(cl, d$id, dir, version)
+      save_ft_docx(ft, fname)
+      cat(flextable::flextable_to_rmd(ft))
+      cat("\n\n")
+    }
+    cat(sprintf(
+      "[📄 Overdose Word](../tables/heatmap/%1$s_%2$s_%3$s_overdose.docx) · [📄 Underdose Word](../tables/heatmap/%1$s_%2$s_%3$s_underdose.docx)\n\n",
+      version, scale, d$id))
+  }
 }
 ```
 
@@ -216,15 +277,25 @@ standard — would prescribe. Each cell is the **percent of patients mis-dosed**
 - **OVERDOSE (%)** — the equation would give *more* drug than mGFR warrants.
 - **UNDERDOSE (%)** — the equation would give *less* drug than mGFR warrants.
 
-**Traffic-light colour** — the number in each cell is the **share of patients in that subgroup
-whose dose would be wrong in that direction** (over- or under-dosed vs mGFR), coloured
-<span style="background:#92D050">&nbsp;green &lt; 5 %&nbsp;</span> ·
-<span style="background:#FFC000">&nbsp;orange 5–10 %&nbsp;</span> ·
-<span style="background:#FF0000;color:white">&nbsp;red &gt; 10 %&nbsp;</span>. The 5 % / 10 % breaks
-are a chosen reporting convention (good / caution / concerning), not a fixed guideline.
+**Cell colour** — the number in each cell is the **share of patients in that subgroup whose dose
+would be wrong in that direction** (over- or under-dosed vs mGFR). The same tables are shown in
+**two colour versions** so you can compare:
 
-Columns give the **Overall** rate and rates within **Sex**, **BMI category**, and **Metastatic
-disease** subgroups. Results are shown on both the **indexed** (mL/min/1.73 m²) and **non-indexed**
+- **Part A — categorical (4 severity bands):**
+  <span style="background:#FFEDA0">&nbsp;yellow &lt; 5 %&nbsp;</span> ·
+  <span style="background:#FEB24C">&nbsp;orange 5–10 %&nbsp;</span> ·
+  <span style="background:#F03B20;color:white">&nbsp;red 10–20 %&nbsp;</span> ·
+  <span style="background:#6A51A3;color:white">&nbsp;purple &gt; 20 %&nbsp;</span>.
+- **Part B — continuous:** a shade of the value,
+  <span style="background:#FFFFFF;border:1px solid #ccc">&nbsp;white = 0 %&nbsp;</span> →
+  <span style="background:#B2182B;color:white">&nbsp;deep red&nbsp;</span>, saturating (worst) at
+  **≥ 30 %**.
+
+Both are severity scales (higher % = worse) applied to over- and under-dose alike; the exact
+percentage is printed in every cell.
+
+Columns give the **Overall** rate and rates within **Sex**, **BMI category**, **Metastatic
+disease**, and **Age** (<70 vs ≥70) subgroups. Results are shown on both the **indexed** (mL/min/1.73 m²) and **non-indexed**
 (absolute mL/min) GFR scale; mGFR is always taken on the same scale as the equation. All 1,200
 patients are used for every drug (a counterfactual — the file has no administered doses).
 
@@ -306,6 +377,7 @@ equation columns plus `gender`, `BMI`, and `metastasis` (below).*
 | `sex` | `gender` (1, 2) | Male (1); Female (2) |
 | `bmi_grp` | `BMI` (kg/m²) | `<20`; `20 to <25`; `25 to <30`; `≥30` |
 | `met_grp` | `metastasis` (0, 1) | Not metastatic (0); Metastatic (1) |
+| `age_grp` | `age` (years) | `<70`; `≥70` (binary cut-off at 70) |
 
 ### Computed classification fields
 
@@ -318,161 +390,47 @@ equation columns plus `gender`, `BMI`, and `metastasis` (below).*
 | `pct_under` | 0–100 | % of the subgroup classified Underdose → **UNDERDOSE (%)** cells |
 | `equation` / `type` / `label` | — | equation id / eGFR family / display name (see table above) |
 
-Cell colour (both directions): green < 5 % · orange 5–10 % · red > 10 %.
+Cell colour: two versions of the same tables — **Part A** categorical (yellow <5 / orange 5–10 / red 10–20 / purple >20) and **Part B** continuous white→red (worst at ≥30 %). Higher % = worse in both; the number is printed in every cell.
 
-# 3 Indexed GFR (mL/min/1.73 m²)
+# Part A — Categorical colour (4 levels)
 
-## 3.1 Carboplatin (±20%)
+Severity bands (same scale for over- and under-dose):
+<span style="background:#FFEDA0">&nbsp;yellow &lt; 5 %&nbsp;</span> ·
+<span style="background:#FEB24C">&nbsp;orange 5–10 %&nbsp;</span> ·
+<span style="background:#F03B20;color:white">&nbsp;red 10–20 %&nbsp;</span> ·
+<span style="background:#6A51A3;color:white">&nbsp;purple &gt; 20 %&nbsp;</span>
 
 ```{r}
-#| label: idx-carbo20-over
-tl(cl_index, "carboplatin_b20", "Overdose", "index_carboplatin20_over")
+#| label: partA-index
+#| results: asis
+emit_scale(cl_index, "cat", "index", "Indexed GFR (mL/min/1.73 m²)")
 ```
 
 ```{r}
-#| label: idx-carbo20-under
-tl(cl_index, "carboplatin_b20", "Underdose", "index_carboplatin20_under")
+#| label: partA-nonindex
+#| results: asis
+emit_scale(cl_nonindex, "cat", "nonindex", "Non-indexed GFR (absolute mL/min)")
 ```
 
-[📄 Overdose table](../tables/heatmap/index_carboplatin20_over.docx) ·
-[📄 Underdose table](../tables/heatmap/index_carboplatin20_under.docx)
+# Part B — Continuous colour (white → red)
 
-## 3.2 Carboplatin (±15%)
-
-```{r}
-#| label: idx-carbo15-over
-tl(cl_index, "carboplatin_b15", "Overdose", "index_carboplatin15_over")
-```
+Shade ∝ value, saturating at 30 %:
+<span style="background:#FFFFFF;border:1px solid #ccc">&nbsp;white = 0 %&nbsp;</span> →
+<span style="background:#B2182B;color:white">&nbsp;deep red ≥ 30 %&nbsp;</span> (darker = worse). The
+exact % is printed in every cell.
 
 ```{r}
-#| label: idx-carbo15-under
-tl(cl_index, "carboplatin_b15", "Underdose", "index_carboplatin15_under")
-```
-
-[📄 Overdose table](../tables/heatmap/index_carboplatin15_over.docx) ·
-[📄 Underdose table](../tables/heatmap/index_carboplatin15_under.docx)
-
-## 3.3 Cisplatin
-
-```{r}
-#| label: idx-cis-over
-tl(cl_index, "cisplatin", "Overdose", "index_cisplatin_over")
+#| label: partB-index
+#| results: asis
+emit_scale(cl_index, "cont", "index", "Indexed GFR (mL/min/1.73 m²)")
 ```
 
 ```{r}
-#| label: idx-cis-under
-tl(cl_index, "cisplatin", "Underdose", "index_cisplatin_under")
+#| label: partB-nonindex
+#| results: asis
+emit_scale(cl_nonindex, "cont", "nonindex", "Non-indexed GFR (absolute mL/min)")
 ```
 
-[📄 Overdose table](../tables/heatmap/index_cisplatin_over.docx) ·
-[📄 Underdose table](../tables/heatmap/index_cisplatin_under.docx)
-
-## 3.4 Methotrexate
-
-```{r}
-#| label: idx-mtx-over
-tl(cl_index, "methotrexate", "Overdose", "index_methotrexate_over")
-```
-
-```{r}
-#| label: idx-mtx-under
-tl(cl_index, "methotrexate", "Underdose", "index_methotrexate_under")
-```
-
-[📄 Overdose table](../tables/heatmap/index_methotrexate_over.docx) ·
-[📄 Underdose table](../tables/heatmap/index_methotrexate_under.docx)
-
-## 3.5 Melphalan
-
-```{r}
-#| label: idx-melph-over
-tl(cl_index, "melphalan", "Overdose", "index_melphalan_over")
-```
-
-```{r}
-#| label: idx-melph-under
-tl(cl_index, "melphalan", "Underdose", "index_melphalan_under")
-```
-
-[📄 Overdose table](../tables/heatmap/index_melphalan_over.docx) ·
-[📄 Underdose table](../tables/heatmap/index_melphalan_under.docx)
-
-# 4 Non-Indexed GFR (absolute mL/min)
-
-## 4.1 Carboplatin (±20%)
-
-```{r}
-#| label: nix-carbo20-over
-tl(cl_nonindex, "carboplatin_b20", "Overdose", "nonindex_carboplatin20_over")
-```
-
-```{r}
-#| label: nix-carbo20-under
-tl(cl_nonindex, "carboplatin_b20", "Underdose", "nonindex_carboplatin20_under")
-```
-
-[📄 Overdose table](../tables/heatmap/nonindex_carboplatin20_over.docx) ·
-[📄 Underdose table](../tables/heatmap/nonindex_carboplatin20_under.docx)
-
-## 4.2 Carboplatin (±15%)
-
-```{r}
-#| label: nix-carbo15-over
-tl(cl_nonindex, "carboplatin_b15", "Overdose", "nonindex_carboplatin15_over")
-```
-
-```{r}
-#| label: nix-carbo15-under
-tl(cl_nonindex, "carboplatin_b15", "Underdose", "nonindex_carboplatin15_under")
-```
-
-[📄 Overdose table](../tables/heatmap/nonindex_carboplatin15_over.docx) ·
-[📄 Underdose table](../tables/heatmap/nonindex_carboplatin15_under.docx)
-
-## 4.3 Cisplatin
-
-```{r}
-#| label: nix-cis-over
-tl(cl_nonindex, "cisplatin", "Overdose", "nonindex_cisplatin_over")
-```
-
-```{r}
-#| label: nix-cis-under
-tl(cl_nonindex, "cisplatin", "Underdose", "nonindex_cisplatin_under")
-```
-
-[📄 Overdose table](../tables/heatmap/nonindex_cisplatin_over.docx) ·
-[📄 Underdose table](../tables/heatmap/nonindex_cisplatin_under.docx)
-
-## 4.4 Methotrexate
-
-```{r}
-#| label: nix-mtx-over
-tl(cl_nonindex, "methotrexate", "Overdose", "nonindex_methotrexate_over")
-```
-
-```{r}
-#| label: nix-mtx-under
-tl(cl_nonindex, "methotrexate", "Underdose", "nonindex_methotrexate_under")
-```
-
-[📄 Overdose table](../tables/heatmap/nonindex_methotrexate_over.docx) ·
-[📄 Underdose table](../tables/heatmap/nonindex_methotrexate_under.docx)
-
-## 4.5 Melphalan
-
-```{r}
-#| label: nix-melph-over
-tl(cl_nonindex, "melphalan", "Overdose", "nonindex_melphalan_over")
-```
-
-```{r}
-#| label: nix-melph-under
-tl(cl_nonindex, "melphalan", "Underdose", "nonindex_melphalan_under")
-```
-
-[📄 Overdose table](../tables/heatmap/nonindex_melphalan_over.docx) ·
-[📄 Underdose table](../tables/heatmap/nonindex_melphalan_under.docx)
 
 # 5 Notes
 
