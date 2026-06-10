@@ -50,12 +50,12 @@ cat4_fill <- function(x) {
                    TRUE    ~ "#6A51A3")   # purple
 }
 
-# V2: continuous white (0 %) -> `high`, saturating at `dom` %. (base grDevices,
-# no extra dependency). The exact % is printed in every cell.
-ramp_fill <- function(x, high, dom = 30) {
-  f   <- grDevices::colorRamp(c("#FFFFFF", high))
+# V2: continuous gradient across `stops` (low 0 % -> high), saturating at `dom` %.
+# (base grDevices, no extra dependency). The exact % is printed in every cell.
+ramp_fill <- function(x, stops, dom = 30) {
+  f   <- grDevices::colorRamp(stops)
   x2  <- pmin(pmax(x, 0), dom) / dom
-  out <- rep("#FFFFFF", length(x))
+  out <- rep("#FFFFFF", length(x))      # NA -> white (no data)
   ok  <- !is.na(x2)
   if (any(ok)) {
     m <- f(x2[ok])
@@ -63,6 +63,8 @@ ramp_fill <- function(x, high, dom = 30) {
   }
   out
 }
+# Yellow -> orange -> red ramp for Part B (low % = yellow, high % = deep red).
+CONT_STOPS <- c("#FFEDA0", "#FEB24C", "#F03B20", "#B2182B")
 ```
 
 # 2 Data Management {.content-hidden}
@@ -234,8 +236,8 @@ build_ft <- function(cl, drug_id, direction, version) {
     fill_fn <- cat4_fill
     dark_fn <- function(x) !is.na(x) & x >= 10            # red & purple -> white text
   } else {
-    fill_fn <- function(x) ramp_fill(x, "#B2182B", 30)    # continuous, saturate at 30 %
-    dark_fn <- function(x) !is.na(x) & x > 18
+    fill_fn <- function(x) ramp_fill(x, CONT_STOPS, 30)   # yellow->red, saturate at 30 %
+    dark_fn <- function(x) !is.na(x) & x >= 20            # white text on the red end
   }
   make_tl_ft(tab, title, fill_fn, dark_fn)
 }
@@ -287,7 +289,8 @@ would be wrong in that direction** (over- or under-dosed vs mGFR). The same tabl
   <span style="background:#F03B20;color:white">&nbsp;red 10–20 %&nbsp;</span> ·
   <span style="background:#6A51A3;color:white">&nbsp;purple &gt; 20 %&nbsp;</span>.
 - **Part B — continuous:** a shade of the value,
-  <span style="background:#FFFFFF;border:1px solid #ccc">&nbsp;white = 0 %&nbsp;</span> →
+  <span style="background:#FFEDA0">&nbsp;yellow = 0 %&nbsp;</span> →
+  <span style="background:#FEB24C">&nbsp;orange&nbsp;</span> →
   <span style="background:#B2182B;color:white">&nbsp;deep red&nbsp;</span>, saturating (worst) at
   **≥ 30 %**.
 
@@ -390,7 +393,7 @@ equation columns plus `gender`, `BMI`, and `metastasis` (below).*
 | `pct_under` | 0–100 | % of the subgroup classified Underdose → **UNDERDOSE (%)** cells |
 | `equation` / `type` / `label` | — | equation id / eGFR family / display name (see table above) |
 
-Cell colour: two versions of the same tables — **Part A** categorical (yellow <5 / orange 5–10 / red 10–20 / purple >20) and **Part B** continuous white→red (worst at ≥30 %). Higher % = worse in both; the number is printed in every cell.
+Cell colour: two versions of the same tables — **Part A** categorical (yellow <5 / orange 5–10 / red 10–20 / purple >20) and **Part B** continuous yellow→red (worst at ≥30 %). Higher % = worse in both; the number is printed in every cell.
 
 # Part A — Categorical colour (4 levels)
 
@@ -412,10 +415,11 @@ emit_scale(cl_index, "cat", "index", "Indexed GFR (mL/min/1.73 m²)")
 emit_scale(cl_nonindex, "cat", "nonindex", "Non-indexed GFR (absolute mL/min)")
 ```
 
-# Part B — Continuous colour (white → red)
+# Part B — Continuous colour (yellow → red)
 
 Shade ∝ value, saturating at 30 %:
-<span style="background:#FFFFFF;border:1px solid #ccc">&nbsp;white = 0 %&nbsp;</span> →
+<span style="background:#FFEDA0">&nbsp;yellow = 0 %&nbsp;</span> →
+<span style="background:#FEB24C">&nbsp;orange&nbsp;</span> →
 <span style="background:#B2182B;color:white">&nbsp;deep red ≥ 30 %&nbsp;</span> (darker = worse). The
 exact % is printed in every cell.
 
