@@ -17,7 +17,7 @@ execute:
 invisible(Sys.setlocale("LC_ALL", "en_US.UTF-8"))
 
 # Lightweight install guard so the project renders on a fresh machine.
-.need <- c("readxl","dplyr","tidyr","purrr","tibble","flextable","officer")
+.need <- c("readxl","dplyr","tidyr","purrr","tibble","flextable","officer","ggplot2")
 .miss <- setdiff(.need, rownames(installed.packages()))
 if (length(.miss)) install.packages(.miss, repos = "https://cloud.r-project.org")
 
@@ -27,6 +27,7 @@ library(tidyr)
 library(purrr)
 library(tibble)
 library(flextable)
+library(ggplot2)
 
 # Output directory for downloadable Word copies of every table.
 docx_dir <- "docs/tables/heatmap"
@@ -83,7 +84,8 @@ dat <- raw %>%
     # metastasis is complete (0/1) in this dataset — no "Unknown" level.
     met_grp = factor(metastasis, levels = c(0, 1),
                      labels = c("Not metastatic", "Metastatic")),
-    age_grp = factor(ifelse(age >= 70, ">=70", "<70"), levels = c("<70", ">=70"))
+    age_grp = factor(ifelse(age >= 70, ">=70", "<70"), levels = c("<70", ">=70")),
+    scr_cys = Cr / CysC          # serum-creatinine / cystatin-C ratio (LOESS x-axis)
   )
 
 # --- Equation registry: type + label + index/non-index columns -------------
@@ -139,7 +141,7 @@ build_class_long <- function(scale = c("index", "nonindex")) {
     if (scale == "index") r$index_col[[1]] else r$nonindex_col[[1]]
   }
   mgfr <- dat[[MGFR[[scale]]]]
-  base <- dplyr::select(dat, sex, bmi_grp, met_grp, age_grp)
+  base <- dplyr::select(dat, sex, bmi_grp, met_grp, age_grp, scr_cys)
   tier <- purrr::map_dfr(reg$equation, function(eq) {
     g <- dat[[col_of(eq)]]
     purrr::map_dfr(TIER_DRUGS, function(dr)
@@ -249,6 +251,28 @@ DRUGS <- list(
   list(id = "methotrexate",    lab = "Methotrexate"),
   list(id = "melphalan",       lab = "Melphalan")
 )
+DRUG_IDS  <- vapply(DRUGS, `[[`, "", "id")
+DRUG_LABS <- vapply(DRUGS, `[[`, "", "lab")
+
+# LOESS: one plot per equation; the 5 drugs are overlaid as colour-coded LOESS
+# smooths of P(over/under-dose) vs the SCr/CysC ratio (binary 0/1 -> % via mean).
+loess_plot <- function(cl, eq, direction) {
+  r   <- reg[reg$equation == eq, ]
+  ttl <- paste0(r$type, " · ", r$label)
+  d <- cl %>%
+    dplyr::filter(equation == eq, !is.na(cls), !is.na(scr_cys)) %>%
+    dplyr::mutate(y = as.integer(cls == direction) * 100,
+                  Drug = factor(drug, levels = DRUG_IDS, labels = DRUG_LABS))
+  ggplot2::ggplot(d, ggplot2::aes(scr_cys, y, colour = Drug, fill = Drug)) +
+    ggplot2::geom_smooth(method = "loess", formula = y ~ x, span = 0.9,
+                         se = TRUE, alpha = 0.10, linewidth = 0.9) +
+    ggplot2::coord_cartesian(xlim = c(0.4, 1.5), ylim = c(0, 100)) +
+    ggplot2::labs(x = "SCr / CysC ratio", y = paste0("% ", tolower(direction), "d"),
+                  title = ttl, colour = NULL, fill = NULL) +
+    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme(legend.position = "right",
+                   plot.title = ggplot2::element_text(face = "bold", size = 11))
+}
 
 # Emit every drug × direction for one scale/version (call inside a results='asis'
 # chunk). Saves each table to Word and prints it with a download link.
@@ -433,6 +457,60 @@ emit_scale(cl_index, "cont", "index", "Indexed GFR (mL/min/1.73 m²)")
 #| label: partB-nonindex
 #| results: asis
 emit_scale(cl_nonindex, "cont", "nonindex", "Non-indexed GFR (absolute mL/min)")
+```
+
+
+# LOESS — over/under-dose probability vs SCr/CysC ratio
+
+For each eGFR equation, a **LOESS smooth** of the probability that the equation **over-** (or
+**under-) doses** relative to measured GFR, as a function of the patient's **serum-creatinine /
+cystatin-C ratio (SCr/CysC = `Cr` ⁄ `CysC`)**. One plot per equation; the five drugs are overlaid
+as colour-coded curves (shaded band = 95 % CI). Same OncoGFR cohort (N = 1,200). The two equation
+families **mirror each other**: a **low** ratio (creatinine low relative to cystatin — e.g. low
+muscle mass) makes **creatinine-based** equations read GFR falsely high → overdose, whereas a
+**high** ratio (cystatin low relative to creatinine) makes **cystatin-based** equations read GFR
+falsely high → overdose. So creatinine-equation overdose curves *fall* as the ratio rises while
+cystatin-equation curves *rise* — exactly what makes SCr/CysC a useful discriminating biomarker
+(underdose curves are the mirror image).
+
+## Indexed GFR (mL/min/1.73 m²)
+
+### Overdose
+
+```{r}
+#| label: loess-idx-over
+#| fig-width: 7
+#| fig-height: 4
+for (eq in reg$equation) print(loess_plot(cl_index, eq, "Overdose"))
+```
+
+### Underdose
+
+```{r}
+#| label: loess-idx-under
+#| fig-width: 7
+#| fig-height: 4
+for (eq in reg$equation) print(loess_plot(cl_index, eq, "Underdose"))
+```
+
+## Non-indexed GFR (absolute mL/min)
+
+### Overdose
+
+```{r}
+#| label: loess-nix-over
+#| fig-width: 7
+#| fig-height: 4
+for (eq in reg$equation) print(loess_plot(cl_nonindex, eq, "Overdose"))
+```
+
+### Underdose
+
+```{r}
+#| label: loess-nix-under
+#| fig-width: 7
+#| fig-height: 4
+for (eq in reg$equation) print(loess_plot(cl_nonindex, eq, "Underdose"))
 ```
 
 
