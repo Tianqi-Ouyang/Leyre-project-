@@ -462,11 +462,13 @@ emit_scale(cl_nonindex, "cont", "nonindex", "Non-indexed GFR (absolute mL/min)")
 
 # LOESS — over/under-dose probability vs SCr/CysC ratio
 
-For each eGFR equation, a **LOESS smooth** of the probability that the equation **over-** (or
-**under-) doses** relative to measured GFR, as a function of the patient's **serum-creatinine /
-cystatin-C ratio (SCr/CysC = `Cr` ⁄ `CysC`)**. One plot per equation; the five drugs are overlaid
-as colour-coded curves (shaded band = 95 % CI). Same OncoGFR cohort (N = 1,200). The two equation
-families **mirror each other**: a **low** ratio (creatinine low relative to cystatin — e.g. low
+For each of the **8 eGFR equations**, a **LOESS smooth** of the probability that the equation
+**over-** (or **under-) doses** relative to measured GFR (mGFR), as a function of the patient's
+**serum-creatinine / cystatin-C ratio (SCr/CysC = `Cr` ⁄ `CysC`)**. **One plot per equation**, with
+the **5 drugs overlaid** as colour-coded curves (shaded band = ± 95 % CI), arranged in four
+subsections — **Indexed → Overdose / Underdose** and **Non-indexed → Overdose / Underdose**
+(**32 plots total**). Same OncoGFR cohort (N = 1,200). The two equation families **mirror each
+other**: a **low** ratio (creatinine low relative to cystatin — e.g. low
 muscle mass) makes **creatinine-based** equations read GFR falsely high → overdose, whereas a
 **high** ratio (cystatin low relative to creatinine) makes **cystatin-based** equations read GFR
 falsely high → overdose. So creatinine-equation overdose curves *fall* as the ratio rises while
