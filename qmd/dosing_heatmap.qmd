@@ -256,6 +256,10 @@ DRUGS <- list(
 DRUG_IDS  <- vapply(DRUGS, `[[`, "", "id")
 DRUG_LABS <- vapply(DRUGS, `[[`, "", "lab")
 
+# Equations shown in the LOESS panels — exclude the two that DEFINE the x-axis
+# ratio (CKD-EPI Cys 2012 and CKD-EPI Cr 2021) as self-referential.
+LOESS_EQS <- setdiff(reg$equation, c("CKDEPIcys", "CKDEPIcr21"))
+
 # LOESS: one plot per equation; the 5 drugs are overlaid as colour-coded LOESS
 # smooths of P(over/under-dose) vs the eGFR ratio (binary 0/1 -> % via mean).
 loess_plot <- function(cl, eq, direction) {
@@ -465,12 +469,13 @@ emit_scale(cl_nonindex, "cont", "nonindex", "Non-indexed GFR (absolute mL/min)")
 
 # LOESS — over/under-dose probability vs eGFR ratio (Cys / Cr)
 
-For each of the **8 eGFR equations**, a **LOESS smooth** of the probability that the equation
+For each of **6 eGFR equations** (the two that define the x-axis ratio — CKD-EPI Cys 2012 and
+CKD-EPI Cr 2021 — are excluded as self-referential), a **LOESS smooth** of the probability that the equation
 **over-** (or **under-) doses** relative to measured GFR (mGFR), as a function of the patient's
 **eGFR ratio = CKD-EPI Cys (2012) ⁄ CKD-EPI Cr (2021)** (ratio of two eGFRs, so BSA cancels and the
 value is the same on either scale). **One plot per equation**, with the **5 drugs overlaid** as
 colour-coded curves (shaded band = ± 95 % CI), arranged in four subsections —
-**Indexed → Overdose / Underdose** and **Non-indexed → Overdose / Underdose** (**32 plots total**).
+**Indexed → Overdose / Underdose** and **Non-indexed → Overdose / Underdose** (**24 plots total**).
 Same OncoGFR cohort (N = 1,200). The two equation families **mirror each other**: a **low** ratio
 (cystatin-eGFR below creatinine-eGFR — e.g. low muscle mass, where creatinine reads function
 falsely high) makes **creatinine-based** equations overdose, whereas a **high** ratio (cystatin-eGFR
@@ -487,7 +492,7 @@ cystatin-equation curves *rise* — exactly what makes this eGFR ratio a useful 
 #| label: loess-idx-over
 #| fig-width: 7
 #| fig-height: 4
-for (eq in reg$equation) print(loess_plot(cl_index, eq, "Overdose"))
+for (eq in LOESS_EQS) print(loess_plot(cl_index, eq, "Overdose"))
 ```
 
 ### Underdose
@@ -496,7 +501,7 @@ for (eq in reg$equation) print(loess_plot(cl_index, eq, "Overdose"))
 #| label: loess-idx-under
 #| fig-width: 7
 #| fig-height: 4
-for (eq in reg$equation) print(loess_plot(cl_index, eq, "Underdose"))
+for (eq in LOESS_EQS) print(loess_plot(cl_index, eq, "Underdose"))
 ```
 
 ## Non-indexed GFR (absolute mL/min)
@@ -507,7 +512,7 @@ for (eq in reg$equation) print(loess_plot(cl_index, eq, "Underdose"))
 #| label: loess-nix-over
 #| fig-width: 7
 #| fig-height: 4
-for (eq in reg$equation) print(loess_plot(cl_nonindex, eq, "Overdose"))
+for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Overdose"))
 ```
 
 ### Underdose
@@ -516,7 +521,7 @@ for (eq in reg$equation) print(loess_plot(cl_nonindex, eq, "Overdose"))
 #| label: loess-nix-under
 #| fig-width: 7
 #| fig-height: 4
-for (eq in reg$equation) print(loess_plot(cl_nonindex, eq, "Underdose"))
+for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Underdose"))
 ```
 
 
