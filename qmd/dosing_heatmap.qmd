@@ -85,7 +85,9 @@ dat <- raw %>%
     met_grp = factor(metastasis, levels = c(0, 1),
                      labels = c("Not metastatic", "Metastatic")),
     age_grp = factor(ifelse(age >= 70, ">=70", "<70"), levels = c("<70", ">=70")),
-    scr_cys = Cr / CysC          # serum-creatinine / cystatin-C ratio (LOESS x-axis)
+    # LOESS x-axis: eGFRcys (CKD-EPI 2012) / eGFRcr (CKD-EPI 2021). Ratio of two
+    # eGFRs is scale-invariant (BSA cancels), so index columns are used.
+    egfr_ratio = CKDEPIcysindex / CKDEPIcr21index
   )
 
 # --- Equation registry: type + label + index/non-index columns -------------
@@ -141,7 +143,7 @@ build_class_long <- function(scale = c("index", "nonindex")) {
     if (scale == "index") r$index_col[[1]] else r$nonindex_col[[1]]
   }
   mgfr <- dat[[MGFR[[scale]]]]
-  base <- dplyr::select(dat, sex, bmi_grp, met_grp, age_grp, scr_cys)
+  base <- dplyr::select(dat, sex, bmi_grp, met_grp, age_grp, egfr_ratio)
   tier <- purrr::map_dfr(reg$equation, function(eq) {
     g <- dat[[col_of(eq)]]
     purrr::map_dfr(TIER_DRUGS, function(dr)
@@ -255,19 +257,20 @@ DRUG_IDS  <- vapply(DRUGS, `[[`, "", "id")
 DRUG_LABS <- vapply(DRUGS, `[[`, "", "lab")
 
 # LOESS: one plot per equation; the 5 drugs are overlaid as colour-coded LOESS
-# smooths of P(over/under-dose) vs the SCr/CysC ratio (binary 0/1 -> % via mean).
+# smooths of P(over/under-dose) vs the eGFR ratio (binary 0/1 -> % via mean).
 loess_plot <- function(cl, eq, direction) {
   r   <- reg[reg$equation == eq, ]
   ttl <- paste0(r$type, " · ", r$label)
   d <- cl %>%
-    dplyr::filter(equation == eq, !is.na(cls), !is.na(scr_cys)) %>%
+    dplyr::filter(equation == eq, !is.na(cls), !is.na(egfr_ratio)) %>%
     dplyr::mutate(y = as.integer(cls == direction) * 100,
                   Drug = factor(drug, levels = DRUG_IDS, labels = DRUG_LABS))
-  ggplot2::ggplot(d, ggplot2::aes(scr_cys, y, colour = Drug, fill = Drug)) +
+  ggplot2::ggplot(d, ggplot2::aes(egfr_ratio, y, colour = Drug, fill = Drug)) +
     ggplot2::geom_smooth(method = "loess", formula = y ~ x, span = 0.9,
                          se = TRUE, alpha = 0.10, linewidth = 0.9) +
-    ggplot2::coord_cartesian(xlim = c(0.4, 1.5), ylim = c(0, 100)) +
-    ggplot2::labs(x = "SCr / CysC ratio", y = paste0("% ", tolower(direction), "d"),
+    ggplot2::coord_cartesian(xlim = c(0.4, 1.4), ylim = c(0, 100)) +
+    ggplot2::labs(x = "eGFR ratio  (CKD-EPI Cys 2012 / Cr 2021)",
+                  y = paste0("% ", tolower(direction), "d"),
                   title = ttl, colour = NULL, fill = NULL) +
     ggplot2::theme_minimal(base_size = 11) +
     ggplot2::theme(legend.position = "right",
@@ -460,19 +463,20 @@ emit_scale(cl_nonindex, "cont", "nonindex", "Non-indexed GFR (absolute mL/min)")
 ```
 
 
-# LOESS — over/under-dose probability vs SCr/CysC ratio
+# LOESS — over/under-dose probability vs eGFR ratio (Cys / Cr)
 
 For each of the **8 eGFR equations**, a **LOESS smooth** of the probability that the equation
 **over-** (or **under-) doses** relative to measured GFR (mGFR), as a function of the patient's
-**serum-creatinine / cystatin-C ratio (SCr/CysC = `Cr` ⁄ `CysC`)**. **One plot per equation**, with
-the **5 drugs overlaid** as colour-coded curves (shaded band = ± 95 % CI), arranged in four
-subsections — **Indexed → Overdose / Underdose** and **Non-indexed → Overdose / Underdose**
-(**32 plots total**). Same OncoGFR cohort (N = 1,200). The two equation families **mirror each
-other**: a **low** ratio (creatinine low relative to cystatin — e.g. low
-muscle mass) makes **creatinine-based** equations read GFR falsely high → overdose, whereas a
-**high** ratio (cystatin low relative to creatinine) makes **cystatin-based** equations read GFR
-falsely high → overdose. So creatinine-equation overdose curves *fall* as the ratio rises while
-cystatin-equation curves *rise* — exactly what makes SCr/CysC a useful discriminating biomarker
+**eGFR ratio = CKD-EPI Cys (2012) ⁄ CKD-EPI Cr (2021)** (ratio of two eGFRs, so BSA cancels and the
+value is the same on either scale). **One plot per equation**, with the **5 drugs overlaid** as
+colour-coded curves (shaded band = ± 95 % CI), arranged in four subsections —
+**Indexed → Overdose / Underdose** and **Non-indexed → Overdose / Underdose** (**32 plots total**).
+Same OncoGFR cohort (N = 1,200). The two equation families **mirror each other**: a **low** ratio
+(cystatin-eGFR below creatinine-eGFR — e.g. low muscle mass, where creatinine reads function
+falsely high) makes **creatinine-based** equations overdose, whereas a **high** ratio (cystatin-eGFR
+above creatinine-eGFR) makes **cystatin-based** equations overdose. So creatinine-equation overdose
+curves *fall* as the ratio rises while
+cystatin-equation curves *rise* — exactly what makes this eGFR ratio a useful discriminating biomarker
 (underdose curves are the mirror image).
 
 ## Indexed GFR (mL/min/1.73 m²)
