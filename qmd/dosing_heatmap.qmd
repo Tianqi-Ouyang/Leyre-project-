@@ -299,6 +299,93 @@ emit_scale <- function(cl, version, scale, scale_label) {
       version, scale, d$id))
   }
 }
+
+# --- Most conservative GFR = per-patient MINIMUM of CKD-EPI Cr 2021,
+# Cockcroft-Gault, and CKD-EPI Cr-Cys 2021 (the lowest / dose-limiting estimate).
+build_mcg_long <- function(scale) {
+  col_of <- function(eq) {
+    r <- reg[reg$equation == eq, ]
+    if (scale == "index") r$index_col[[1]] else r$nonindex_col[[1]]
+  }
+  mgfr <- dat[[MGFR[[scale]]]]
+  mcg  <- pmin(dat[[col_of("CKDEPIcr21")]], dat[[col_of("CG")]],
+               dat[[col_of("CKDEPIcrcys21")]], na.rm = TRUE)
+  base <- dplyr::select(dat, sex, bmi_grp, met_grp, age_grp)
+  tier <- purrr::map_dfr(TIER_DRUGS, function(dr)
+    dplyr::bind_cols(base, tibble::tibble(drug = dr, cls = dose_class_tier(mcg, mgfr, dr))))
+  carbo <- purrr::map_dfr(names(CARBO_BANDS), function(bn) {
+    k <- CARBO_BANDS[[bn]]
+    dplyr::bind_cols(base, tibble::tibble(drug = bn,
+                                          cls = carbo_class(mcg, mgfr, k[["k_hi"]], k[["k_lo"]])))
+  })
+  dplyr::bind_rows(tier, carbo)
+}
+mcg_index    <- build_mcg_long("index")
+mcg_nonindex <- build_mcg_long("nonindex")
+
+# One table: rows = drugs, columns = subgroups, for the most-conservative GFR.
+mcg_table <- function(cl, direction) {
+  pct <- function(x) if (nrow(x)) round(mean(x$cls == direction) * 100, 1) else NA_real_
+  lvl <- function(x, col, v) pct(x[!is.na(x[[col]]) & x[[col]] == v, ])
+  per_drug <- function(dr) {
+    e <- cl[cl$drug == dr, ]
+    tibble::tibble(drug = dr, Overall = pct(e),
+      Female = lvl(e, "sex", "Female"), Male = lvl(e, "sex", "Male"),
+      bmi1 = lvl(e, "bmi_grp", "<20"), bmi2 = lvl(e, "bmi_grp", "20 to <25"),
+      bmi3 = lvl(e, "bmi_grp", "25 to <30"), bmi4 = lvl(e, "bmi_grp", ">=30"),
+      met_no = lvl(e, "met_grp", "Not metastatic"), met_yes = lvl(e, "met_grp", "Metastatic"),
+      age_lt70 = lvl(e, "age_grp", "<70"), age_ge70 = lvl(e, "age_grp", ">=70"))
+  }
+  purrr::map_dfr(DRUG_IDS, per_drug) %>%
+    dplyr::mutate(Drug = factor(drug, levels = DRUG_IDS, labels = DRUG_LABS)) %>%
+    dplyr::select(Drug, dplyr::all_of(SUB_COLS))
+}
+
+# Flextable for the drug-row table (Drug label column + subgroup spanners).
+make_mcg_ft <- function(tab, title, fill_fn, dark_fn) {
+  ncol_total <- length(c("Drug", SUB_COLS))
+  ft <- flextable::flextable(tab, col_keys = c("Drug", SUB_COLS))
+  ft <- flextable::set_header_labels(ft, values = c(list(Drug = "Drug"), as.list(SUB_LABS)))
+  ft <- flextable::add_header_row(ft, top = TRUE,
+    values    = c("", "", "Sex", "BMI category (kg/m²)", "Metastatic disease", "Age (years)"),
+    colwidths = c(1, 1, 2, 4, 2, 2))
+  ft <- flextable::add_header_row(ft, top = TRUE, values = title, colwidths = ncol_total)
+  for (cc in SUB_COLS) {
+    v  <- tab[[cc]]
+    ft <- flextable::bg(ft, j = cc, bg = fill_fn(v), part = "body")
+    dark <- which(dark_fn(v))
+    if (length(dark)) ft <- flextable::color(ft, i = dark, j = cc, color = "white", part = "body")
+  }
+  ft <- flextable::align(ft, j = SUB_COLS, align = "center", part = "all")
+  ft <- flextable::align(ft, i = 2, align = "center", part = "header")
+  ft <- flextable::align(ft, i = 1, align = "left",   part = "header")
+  ft <- flextable::bold(ft, part = "header")
+  ft <- flextable::fontsize(ft, size = 9, part = "all")
+  ft <- flextable::fontsize(ft, i = 1, size = 11, part = "header")
+  flextable::set_table_properties(ft, layout = "autofit", width = 1)
+}
+
+mcg_ft <- function(cl, direction, version) {
+  title <- paste0(toupper(direction), " (%)")
+  if (version == "cat") {
+    fill_fn <- cat4_fill;                                 dark_fn <- function(x) !is.na(x) & x >= 10
+  } else {
+    fill_fn <- function(x) ramp_fill(x, CONT_STOPS, 30);  dark_fn <- function(x) !is.na(x) & x >= 20
+  }
+  make_mcg_ft(mcg_table(cl, direction), title, fill_fn, dark_fn)
+}
+
+emit_mcg <- function(cl, version, scale, scale_label) {
+  cat("\n\n#### ", scale_label, "\n\n", sep = "")
+  for (dir in c("Overdose", "Underdose")) {
+    ft <- mcg_ft(cl, dir, version)
+    save_ft_docx(ft, paste0("mcg_", version, "_", scale, "_", tolower(dir)))
+    cat(flextable::flextable_to_rmd(ft)); cat("\n\n")
+  }
+  cat(sprintf(
+    "[📄 Overdose Word](../tables/heatmap/mcg_%1$s_%2$s_overdose.docx) · [📄 Underdose Word](../tables/heatmap/mcg_%1$s_%2$s_underdose.docx)\n\n",
+    version, scale))
+}
 ```
 
 # Overview
@@ -464,6 +551,45 @@ emit_scale(cl_index, "cont", "index", "Indexed GFR (mL/min/1.73 m²)")
 #| label: partB-nonindex
 #| results: asis
 emit_scale(cl_nonindex, "cont", "nonindex", "Non-indexed GFR (absolute mL/min)")
+```
+
+
+# Most conservative GFR — over/under-dose heatmap
+
+**Most conservative GFR** = for each patient, the **lowest** of three estimates —
+**CKD-EPI Cr (2021)**, **Cockcroft-Gault**, and **CKD-EPI Cr-Cys (2021)** — i.e. the dose-limiting
+(safest) value. Rows = drugs, columns = subgroups; each cell is the % **over-** or **under-dosed**
+vs measured GFR when this single conservative estimate drives the dose. Because it takes the lowest
+GFR it gives the **lowest overdose rate of the three inputs** (over-dosing only when *all three*
+still exceed mGFR), at the cost of more underdosing. Both colour versions and both GFR scales are
+shown; the exact % is printed in every cell.
+
+## Part A — Categorical colour (4 levels)
+
+```{r}
+#| label: mcg-A-index
+#| results: asis
+emit_mcg(mcg_index, "cat", "index", "Indexed GFR (mL/min/1.73 m²)")
+```
+
+```{r}
+#| label: mcg-A-nonindex
+#| results: asis
+emit_mcg(mcg_nonindex, "cat", "nonindex", "Non-indexed GFR (absolute mL/min)")
+```
+
+## Part B — Continuous colour (yellow → red)
+
+```{r}
+#| label: mcg-B-index
+#| results: asis
+emit_mcg(mcg_index, "cont", "index", "Indexed GFR (mL/min/1.73 m²)")
+```
+
+```{r}
+#| label: mcg-B-nonindex
+#| results: asis
+emit_mcg(mcg_nonindex, "cont", "nonindex", "Non-indexed GFR (absolute mL/min)")
 ```
 
 

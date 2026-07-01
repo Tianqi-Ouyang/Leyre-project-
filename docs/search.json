@@ -103,5 +103,33 @@
     "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
     "section": "Non-indexed GFR (absolute mL/min)",
     "text": "Non-indexed GFR (absolute mL/min)\n\nOverdose\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose"
+  },
+  {
+    "objectID": "qmd/dosing_heatmap.html#part-a-categorical-colour-4-levels-1",
+    "href": "qmd/dosing_heatmap.html#part-a-categorical-colour-4-levels-1",
+    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
+    "section": "Part A — Categorical colour (4 levels)",
+    "text": "Part A — Categorical colour (4 levels)\n\nIndexed GFR (mL/min/1.73 m²)\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseAge (years)DrugOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastatic&lt;70≥70Carboplatin (±20%)7.011.42.86.67.37.66.17.63.47.93.9Carboplatin (±15%)11.318.04.913.112.711.69.611.88.412.56.9Cisplatin6.27.05.41.68.06.74.75.88.44.711.6Methotrexate9.113.44.913.112.08.07.49.37.910.53.9Melphalan4.55.13.90.06.34.83.34.45.13.96.6\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseAge (years)DrugOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastatic&lt;70≥70Carboplatin (±20%)3.32.54.10.02.33.64.43.42.83.23.9Carboplatin (±15%)7.65.110.03.38.08.27.27.86.26.412.0Cisplatin9.26.811.611.511.39.07.48.612.95.223.9Methotrexate6.85.87.98.28.76.16.16.59.06.67.7Melphalan6.34.68.06.65.36.76.66.46.24.114.3\n\n\n📄 Overdose Word · 📄 Underdose Word\n\n\nNon-indexed GFR (absolute mL/min)\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseAge (years)DrugOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastatic&lt;70≥70Carboplatin (±20%)6.911.22.86.67.37.46.17.53.47.93.5Carboplatin (±15%)11.418.24.913.112.012.09.912.07.912.86.6Cisplatin6.17.64.66.67.77.43.06.25.64.512.0Methotrexate8.310.95.98.28.78.67.78.38.49.25.0Melphalan4.46.12.84.96.74.62.24.44.54.15.4\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseAge (years)DrugOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastatic&lt;70≥70Carboplatin (±20%)3.62.54.60.02.33.65.23.72.83.44.2Carboplatin (±15%)7.74.810.51.68.08.47.47.96.26.611.6Cisplatin8.26.110.311.512.78.04.47.512.44.820.8Methotrexate6.84.88.84.97.06.57.46.87.37.06.2Melphalan5.74.66.78.27.35.54.15.85.13.712.7\n\n\n📄 Overdose Word · 📄 Underdose Word"
+  },
+  {
+    "objectID": "qmd/dosing_heatmap.html#part-b-continuous-colour-yellow-red-1",
+    "href": "qmd/dosing_heatmap.html#part-b-continuous-colour-yellow-red-1",
+    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
+    "section": "Part B — Continuous colour (yellow → red)",
+    "text": "Part B — Continuous colour (yellow → red)\n\nIndexed GFR (mL/min/1.73 m²)\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseAge (years)DrugOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastatic&lt;70≥70Carboplatin (±20%)7.011.42.86.67.37.66.17.63.47.93.9Carboplatin (±15%)11.318.04.913.112.711.69.611.88.412.56.9Cisplatin6.27.05.41.68.06.74.75.88.44.711.6Methotrexate9.113.44.913.112.08.07.49.37.910.53.9Melphalan4.55.13.90.06.34.83.34.45.13.96.6\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseAge (years)DrugOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastatic&lt;70≥70Carboplatin (±20%)3.32.54.10.02.33.64.43.42.83.23.9Carboplatin (±15%)7.65.110.03.38.08.27.27.86.26.412.0Cisplatin9.26.811.611.511.39.07.48.612.95.223.9Methotrexate6.85.87.98.28.76.16.16.59.06.67.7Melphalan6.34.68.06.65.36.76.66.46.24.114.3\n\n\n📄 Overdose Word · 📄 Underdose Word\n\n\nNon-indexed GFR (absolute mL/min)\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseAge (years)DrugOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastatic&lt;70≥70Carboplatin (±20%)6.911.22.86.67.37.46.17.53.47.93.5Carboplatin (±15%)11.418.24.913.112.012.09.912.07.912.86.6Cisplatin6.17.64.66.67.77.43.06.25.64.512.0Methotrexate8.310.95.98.28.78.67.78.38.49.25.0Melphalan4.46.12.84.96.74.62.24.44.54.15.4\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseAge (years)DrugOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastatic&lt;70≥70Carboplatin (±20%)3.62.54.60.02.33.65.23.72.83.44.2Carboplatin (±15%)7.74.810.51.68.08.47.47.96.26.611.6Cisplatin8.26.110.311.512.78.04.47.512.44.820.8Methotrexate6.84.88.84.97.06.57.46.87.37.06.2Melphalan5.74.66.78.27.35.54.15.85.13.712.7\n\n\n📄 Overdose Word · 📄 Underdose Word"
+  },
+  {
+    "objectID": "qmd/dosing_heatmap.html#indexed-gfr-mlmin1.73-m²-4",
+    "href": "qmd/dosing_heatmap.html#indexed-gfr-mlmin1.73-m²-4",
+    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
+    "section": "Indexed GFR (mL/min/1.73 m²)",
+    "text": "Indexed GFR (mL/min/1.73 m²)\n\nOverdose\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose"
+  },
+  {
+    "objectID": "qmd/dosing_heatmap.html#non-indexed-gfr-absolute-mlmin-4",
+    "href": "qmd/dosing_heatmap.html#non-indexed-gfr-absolute-mlmin-4",
+    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
+    "section": "Non-indexed GFR (absolute mL/min)",
+    "text": "Non-indexed GFR (absolute mL/min)\n\nOverdose\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose"
   }
 ]
