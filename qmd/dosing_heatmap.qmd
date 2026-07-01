@@ -287,9 +287,10 @@ DRUGS <- list(
 DRUG_IDS  <- vapply(DRUGS, `[[`, "", "id")
 DRUG_LABS <- vapply(DRUGS, `[[`, "", "lab")
 
-# Equations shown in the LOESS panels — exclude the two that DEFINE the x-axis
-# ratio (CKD-EPI Cys 2012 and CKD-EPI Cr 2021) as self-referential.
-LOESS_EQS <- setdiff(reg$equation, c("CKDEPIcys", "CKDEPIcr21"))
+# Equations shown in the LOESS panels — all 8. NB: the CKD-EPI Cys 2012 and
+# CKD-EPI Cr 2021 panels are partly self-referential (they define the x-axis
+# ratio/difference), so interpret those two with care.
+LOESS_EQS <- reg$equation
 
 # LOESS: one plot per equation; the 5 drugs are overlaid as colour-coded LOESS
 # smooths of P(over/under-dose) vs an x variable (binary 0/1 -> % via mean).
@@ -668,13 +669,14 @@ emit_scale(cl_nonindex_465, "cont", "nonindex", "Non-indexed GFR (absolute mL/mi
 
 # LOESS — over/under-dose probability vs eGFR ratio (Cys / Cr)
 
-For each of **6 eGFR equations** (the two that define the x-axis ratio — CKD-EPI Cys 2012 and
-CKD-EPI Cr 2021 — are excluded as self-referential), a **LOESS smooth** of the probability that the equation
+For each of the **8 eGFR equations**, a **LOESS smooth** of the probability that the equation
 **over-** (or **under-) doses** relative to measured GFR (mGFR), as a function of the patient's
 **eGFR ratio = CKD-EPI Cys (2012) ⁄ CKD-EPI Cr (2021)** (ratio of two eGFRs, so BSA cancels and the
 value is the same on either scale). **One plot per equation**, with the **5 drugs overlaid** as
 colour-coded curves (shaded band = ± 95 % CI), arranged in four subsections —
-**Indexed → Overdose / Underdose** and **Non-indexed → Overdose / Underdose** (**24 plots total**).
+**Indexed → Overdose / Underdose** and **Non-indexed → Overdose / Underdose** (**32 plots total**).
+*Interpret the **CKD-EPI Cys 2012** and **CKD-EPI Cr 2021** panels with care — the x-axis ratio is
+built from those two equations, so those panels are partly self-referential.*
 Same OncoGFR cohort (N = 1,200). The two equation families **mirror each other**: a **low** ratio
 (cystatin-eGFR below creatinine-eGFR — e.g. low muscle mass, where creatinine reads function
 falsely high) makes **creatinine-based** equations overdose, whereas a **high** ratio (cystatin-eGFR
@@ -728,9 +730,9 @@ for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Underdose"))
 
 Identical to the LOESS section above, but the x-axis is the **eGFR difference = CKD-EPI Cys (2012)
 − CKD-EPI Cr (2021)** (mL/min/1.73 m²) instead of the ratio. Negative = cystatin-eGFR below
-creatinine-eGFR (creatinine reads function higher). Same **6 equations** (the two that define the
-difference are excluded as self-referential), 5 drugs overlaid, index/non-index × over/under
-(**24 plots total**). As with the ratio, creatinine-equation overdose curves *fall* as the
+creatinine-eGFR (creatinine reads function higher). All **8 equations**, 5 drugs overlaid,
+index/non-index × over/under (**32 plots total**; interpret the CKD-EPI Cys 2012 and Cr 2021 panels
+with care — the x-axis difference is built from them). As with the ratio, creatinine-equation overdose curves *fall* as the
 difference rises while cystatin-equation curves *rise*.
 
 ## Indexed GFR (mL/min/1.73 m²)
