@@ -90,6 +90,15 @@ dat <- raw %>%
     egfr_ratio = CKDEPIcysindex / CKDEPIcr21index
   )
 
+# Body-composition subset (465 patients, matched on `protocol`). Adds a Prado
+# sarcopenia group and an in_bodycomp flag; NA for the other 735 patients.
+.bc <- suppressWarnings(readxl::read_excel("Data/OncoGFR_MGH_final_0428.xlsx"))
+dat <- dat %>% dplyr::mutate(
+  in_bodycomp = protocol %in% .bc$protocol,
+  sarc_grp = factor(.bc$sarcopenia_prado[match(protocol, .bc$protocol)],
+                    levels = c(0, 1), labels = c("Non-sarcopenic", "Sarcopenic"))
+)
+
 # --- Equation registry: type + label + index/non-index columns -------------
 # Reference = measured GFR. Note: the creatinine CKD-EPI column is the 2021
 # (race-free) equation; the hyphen in "EKFCcrcysnon-index" is intentional.
@@ -136,22 +145,23 @@ CARBO_BANDS <- list(carboplatin_b20 = c(k_hi = 6, k_lo = 4),
                     carboplatin_b15 = c(k_hi = 5.75, k_lo = 4.25))
 
 # Patient-level classification (carries subgroup columns) for one GFR scale.
-build_class_long <- function(scale = c("index", "nonindex")) {
+# `data` lets a subset (e.g. the 465 body-comp cohort) reuse the same logic.
+build_class_long <- function(scale = c("index", "nonindex"), data = dat) {
   scale  <- match.arg(scale)
   col_of <- function(eq) {
     r <- reg[reg$equation == eq, ]
     if (scale == "index") r$index_col[[1]] else r$nonindex_col[[1]]
   }
-  mgfr <- dat[[MGFR[[scale]]]]
-  base <- dplyr::select(dat, sex, bmi_grp, met_grp, age_grp, egfr_ratio)
+  mgfr <- data[[MGFR[[scale]]]]
+  base <- dplyr::select(data, sex, bmi_grp, met_grp, age_grp, egfr_ratio, sarc_grp)
   tier <- purrr::map_dfr(reg$equation, function(eq) {
-    g <- dat[[col_of(eq)]]
+    g <- data[[col_of(eq)]]
     purrr::map_dfr(TIER_DRUGS, function(dr)
       dplyr::bind_cols(base, tibble::tibble(equation = eq, drug = dr,
                                             cls = dose_class_tier(g, mgfr, dr))))
   })
   carbo <- purrr::map_dfr(reg$equation, function(eq) {
-    g <- dat[[col_of(eq)]]
+    g <- data[[col_of(eq)]]
     purrr::map_dfr(names(CARBO_BANDS), function(bn) {
       k <- CARBO_BANDS[[bn]]
       dplyr::bind_cols(base, tibble::tibble(equation = eq, drug = bn,
@@ -163,6 +173,11 @@ build_class_long <- function(scale = c("index", "nonindex")) {
 cl_index    <- build_class_long("index")
 cl_nonindex <- build_class_long("nonindex")
 
+# 465-patient body-composition subset (adds the Sarcopenia column group).
+dat_465         <- dat %>% dplyr::filter(in_bodycomp)
+cl_index_465    <- build_class_long("index",    dat_465)
+cl_nonindex_465 <- build_class_long("nonindex", dat_465)
+
 # Internal (syntactic) column keys + their display labels.
 SUB_COLS <- c("Overall", "Female", "Male", "bmi1", "bmi2", "bmi3", "bmi4",
               "met_no", "met_yes", "age_lt70", "age_ge70")
@@ -171,14 +186,19 @@ SUB_LABS <- c(Overall = "Overall", Female = "Female", Male = "Male",
               met_no = "Not metastatic", met_yes = "Metastatic",
               age_lt70 = "<70", age_ge70 = "≥70")
 
+# Extended set for the 465 body-comp subset: adds a Sarcopenia (Prado) group.
+SUB_COLS_465 <- c(SUB_COLS, "sarc_no", "sarc_yes")
+SUB_LABS_465 <- c(SUB_LABS, sarc_no = "Non-sarcopenic", sarc_yes = "Sarcopenic")
+
 # Build the equation × subgroup % table for one drug and direction.
-subgroup_table <- function(cl, drug_id, direction) {
+# extra = TRUE appends the Sarcopenia (Prado) columns (465 body-comp subset).
+subgroup_table <- function(cl, drug_id, direction, extra = FALSE) {
   s <- cl %>% dplyr::filter(drug == drug_id, !is.na(cls))
   pct <- function(d) if (nrow(d)) round(mean(d$cls == direction) * 100, 1) else NA_real_
   lvl <- function(d, col, value) pct(d[!is.na(d[[col]]) & d[[col]] == value, ])
   per_eq <- function(eq) {
     e <- s %>% dplyr::filter(equation == eq)
-    tibble::tibble(
+    out <- tibble::tibble(
       equation         = eq,
       Overall          = pct(e),
       Female           = lvl(e, "sex", "Female"),
@@ -192,28 +212,37 @@ subgroup_table <- function(cl, drug_id, direction) {
       age_lt70 = lvl(e, "age_grp", "<70"),
       age_ge70 = lvl(e, "age_grp", ">=70")
     )
+    if (extra) {
+      out$sarc_no  <- lvl(e, "sarc_grp", "Non-sarcopenic")
+      out$sarc_yes <- lvl(e, "sarc_grp", "Sarcopenic")
+    }
+    out
   }
+  cols <- if (extra) SUB_COLS_465 else SUB_COLS
   purrr::map_dfr(reg$equation, per_eq) %>%
     dplyr::left_join(dplyr::select(reg, equation, type, label), by = "equation") %>%
     dplyr::mutate(type = factor(type, levels = unique(reg$type))) %>%
     dplyr::arrange(type, match(equation, reg$equation)) %>%
-    dplyr::select(type, label, dplyr::all_of(SUB_COLS))
+    dplyr::select(type, label, dplyr::all_of(cols))
 }
 
 # Render one heatmap flextable. `fill_fn(v)` -> per-cell hex; `dark_fn(v)` -> TRUE
 # where the fill is dark enough to need white text.
-make_tl_ft <- function(tab, title, fill_fn, dark_fn) {
-  ncol_total <- length(c("type", "label", SUB_COLS))   # 11
-  ft <- flextable::flextable(tab, col_keys = c("type", "label", SUB_COLS))
+make_tl_ft <- function(tab, title, fill_fn, dark_fn, extra = FALSE) {
+  cols  <- if (extra) SUB_COLS_465 else SUB_COLS
+  labs  <- if (extra) SUB_LABS_465 else SUB_LABS
+  spanv <- c("", "", "", "Sex", "BMI category (kg/m²)", "Metastatic disease", "Age (years)")
+  spanw <- c(1, 1, 1, 2, 4, 2, 2)
+  if (extra) { spanv <- c(spanv, "Sarcopenia (Prado)"); spanw <- c(spanw, 2) }
+  ncol_total <- length(c("type", "label", cols))
+  ft <- flextable::flextable(tab, col_keys = c("type", "label", cols))
   ft <- flextable::set_header_labels(ft,
-    values = c(list(type = "eGFR type", label = "Equation"), as.list(SUB_LABS)))
-  # Group-spanner header row (Sex / BMI / Metastatic disease).
-  ft <- flextable::add_header_row(ft, top = TRUE,
-    values    = c("", "", "", "Sex", "BMI category (kg/m²)", "Metastatic disease", "Age (years)"),
-    colwidths = c(1, 1, 1, 2, 4, 2, 2))
+    values = c(list(type = "eGFR type", label = "Equation"), as.list(labs)))
+  # Group-spanner header row (Sex / BMI / Metastatic / Age [/ Sarcopenia]).
+  ft <- flextable::add_header_row(ft, top = TRUE, values = spanv, colwidths = spanw)
   # Title row across the whole table ("OVERDOSE (%)" / "UNDERDOSE (%)").
   ft <- flextable::add_header_row(ft, top = TRUE, values = title, colwidths = ncol_total)
-  for (cc in SUB_COLS) {
+  for (cc in cols) {
     v  <- tab[[cc]]
     ft <- flextable::bg(ft, j = cc, bg = fill_fn(v), part = "body")
     # white text on dark cells — scalar colour on specific rows (avoids a
@@ -223,7 +252,7 @@ make_tl_ft <- function(tab, title, fill_fn, dark_fn) {
   }
   ft <- flextable::merge_v(ft, j = "type", part = "body")
   ft <- flextable::valign(ft, j = "type", valign = "top", part = "body")
-  ft <- flextable::align(ft, j = SUB_COLS, align = "center", part = "all")
+  ft <- flextable::align(ft, j = cols, align = "center", part = "all")
   ft <- flextable::align(ft, i = 2, align = "center", part = "header")  # spanner row
   ft <- flextable::align(ft, i = 1, align = "left",   part = "header")  # title row
   ft <- flextable::bold(ft, part = "header")
@@ -233,8 +262,8 @@ make_tl_ft <- function(tab, title, fill_fn, dark_fn) {
 }
 
 # Build the flextable for one (cl, drug, direction) under colour scheme `version`.
-build_ft <- function(cl, drug_id, direction, version) {
-  tab   <- subgroup_table(cl, drug_id, direction)
+build_ft <- function(cl, drug_id, direction, version, extra = FALSE) {
+  tab   <- subgroup_table(cl, drug_id, direction, extra)
   title <- paste0(toupper(direction), " (%)")
   if (version == "cat") {
     fill_fn <- cat4_fill
@@ -243,7 +272,7 @@ build_ft <- function(cl, drug_id, direction, version) {
     fill_fn <- function(x) ramp_fill(x, CONT_STOPS, 30)   # yellow->red, saturate at 30 %
     dark_fn <- function(x) !is.na(x) & x >= 20            # white text on the red end
   }
-  make_tl_ft(tab, title, fill_fn, dark_fn)
+  make_tl_ft(tab, title, fill_fn, dark_fn, extra)
 }
 
 DRUGS <- list(
@@ -283,20 +312,20 @@ loess_plot <- function(cl, eq, direction) {
 
 # Emit every drug × direction for one scale/version (call inside a results='asis'
 # chunk). Saves each table to Word and prints it with a download link.
-emit_scale <- function(cl, version, scale, scale_label) {
+emit_scale <- function(cl, version, scale, scale_label, extra = FALSE, prefix = version) {
   cat("\n\n### ", scale_label, "\n\n", sep = "")
   for (d in DRUGS) {
     cat("\n\n#### ", d$lab, "\n\n", sep = "")
     for (dir in c("Overdose", "Underdose")) {
-      fname <- paste0(version, "_", scale, "_", d$id, "_", tolower(dir))
-      ft <- build_ft(cl, d$id, dir, version)
+      fname <- paste0(prefix, "_", scale, "_", d$id, "_", tolower(dir))
+      ft <- build_ft(cl, d$id, dir, version, extra)
       save_ft_docx(ft, fname)
       cat(flextable::flextable_to_rmd(ft))
       cat("\n\n")
     }
     cat(sprintf(
       "[📄 Overdose Word](../tables/heatmap/%1$s_%2$s_%3$s_overdose.docx) · [📄 Underdose Word](../tables/heatmap/%1$s_%2$s_%3$s_underdose.docx)\n\n",
-      version, scale, d$id))
+      prefix, scale, d$id))
   }
 }
 
@@ -499,6 +528,7 @@ equation columns plus `gender`, `BMI`, and `metastasis` (below).*
 | `bmi_grp` | `BMI` (kg/m²) | `<20`; `20 to <25`; `25 to <30`; `≥30` |
 | `met_grp` | `metastasis` (0, 1) | Not metastatic (0); Metastatic (1) |
 | `age_grp` | `age` (years) | `<70`; `≥70` (binary cut-off at 70) |
+| `sarc_grp` | `sarcopenia_prado` (`OncoGFR_MGH_final_0428.xlsx`, joined on `protocol`) | Non-sarcopenic (0); Sarcopenic (1). Only the **465** body-comp patients (`in_bodycomp`) — used in the 465 section. |
 
 ### Computed classification fields
 
@@ -590,6 +620,42 @@ emit_mcg(mcg_index, "cont", "index", "Indexed GFR (mL/min/1.73 m²)")
 #| label: mcg-B-nonindex
 #| results: asis
 emit_mcg(mcg_nonindex, "cont", "nonindex", "Non-indexed GFR (absolute mL/min)")
+```
+
+
+# Body-composition subset (465) — over/under-dose heatmap
+
+Same over/under-dose heatmaps as above but **limited to the 465 patients with body-composition
+data** (matched by `protocol` to `OncoGFR_MGH_final_0428.xlsx`), with an added **Sarcopenia (Prado)**
+subgroup column group (Non-sarcopenic n = 308 · Sarcopenic n = 157). Rows = equations, columns =
+Overall · Sex · BMI · Metastatic · Age · **Sarcopenia**; both colour versions and both GFR scales.
+
+## Part A — Categorical colour (4 levels)
+
+```{r}
+#| label: bc465-A-index
+#| results: asis
+emit_scale(cl_index_465, "cat", "index", "Indexed GFR (mL/min/1.73 m²)", extra = TRUE, prefix = "bc465_cat")
+```
+
+```{r}
+#| label: bc465-A-nonindex
+#| results: asis
+emit_scale(cl_nonindex_465, "cat", "nonindex", "Non-indexed GFR (absolute mL/min)", extra = TRUE, prefix = "bc465_cat")
+```
+
+## Part B — Continuous colour (yellow → red)
+
+```{r}
+#| label: bc465-B-index
+#| results: asis
+emit_scale(cl_index_465, "cont", "index", "Indexed GFR (mL/min/1.73 m²)", extra = TRUE, prefix = "bc465_cont")
+```
+
+```{r}
+#| label: bc465-B-nonindex
+#| results: asis
+emit_scale(cl_nonindex_465, "cont", "nonindex", "Non-indexed GFR (absolute mL/min)", extra = TRUE, prefix = "bc465_cont")
 ```
 
 
