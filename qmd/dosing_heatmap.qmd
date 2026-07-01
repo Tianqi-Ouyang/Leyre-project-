@@ -85,9 +85,11 @@ dat <- raw %>%
     met_grp = factor(metastasis, levels = c(0, 1),
                      labels = c("Not metastatic", "Metastatic")),
     age_grp = factor(ifelse(age >= 70, ">=70", "<70"), levels = c("<70", ">=70")),
-    # LOESS x-axis: eGFRcys (CKD-EPI 2012) / eGFRcr (CKD-EPI 2021). Ratio of two
-    # eGFRs is scale-invariant (BSA cancels), so index columns are used.
-    egfr_ratio = CKDEPIcysindex / CKDEPIcr21index
+    # LOESS x-axes: eGFRcys (CKD-EPI 2012) vs eGFRcr (CKD-EPI 2021). The RATIO is
+    # scale-invariant; the DIFFERENCE is not, so it is taken on the indexed scale
+    # (mL/min/1.73 m²). Both use the index columns.
+    egfr_ratio = CKDEPIcysindex / CKDEPIcr21index,
+    egfr_diff  = CKDEPIcysindex - CKDEPIcr21index
   )
 
 # Body-composition subset (465 patients, matched on `protocol`). Adds a Prado
@@ -153,7 +155,7 @@ build_class_long <- function(scale = c("index", "nonindex"), data = dat) {
     if (scale == "index") r$index_col[[1]] else r$nonindex_col[[1]]
   }
   mgfr <- data[[MGFR[[scale]]]]
-  base <- dplyr::select(data, sex, bmi_grp, met_grp, age_grp, egfr_ratio, sarc_grp)
+  base <- dplyr::select(data, sex, bmi_grp, met_grp, age_grp, egfr_ratio, egfr_diff, sarc_grp)
   tier <- purrr::map_dfr(reg$equation, function(eq) {
     g <- data[[col_of(eq)]]
     purrr::map_dfr(TIER_DRUGS, function(dr)
@@ -290,25 +292,30 @@ DRUG_LABS <- vapply(DRUGS, `[[`, "", "lab")
 LOESS_EQS <- setdiff(reg$equation, c("CKDEPIcys", "CKDEPIcr21"))
 
 # LOESS: one plot per equation; the 5 drugs are overlaid as colour-coded LOESS
-# smooths of P(over/under-dose) vs the eGFR ratio (binary 0/1 -> % via mean).
-loess_plot <- function(cl, eq, direction) {
+# smooths of P(over/under-dose) vs an x variable (binary 0/1 -> % via mean).
+# `xvar`/`xlab`/`xlim` default to the eGFR ratio; the difference set overrides them.
+loess_plot <- function(cl, eq, direction, xvar = "egfr_ratio",
+                       xlab = "eGFR ratio  (CKD-EPI Cys 2012 / Cr 2021)",
+                       xlim = c(0.4, 1.4)) {
   r   <- reg[reg$equation == eq, ]
   ttl <- paste0(r$type, " · ", r$label)
   d <- cl %>%
-    dplyr::filter(equation == eq, !is.na(cls), !is.na(egfr_ratio)) %>%
+    dplyr::filter(equation == eq, !is.na(cls), !is.na(.data[[xvar]])) %>%
     dplyr::mutate(y = as.integer(cls == direction) * 100,
                   Drug = factor(drug, levels = DRUG_IDS, labels = DRUG_LABS))
-  ggplot2::ggplot(d, ggplot2::aes(egfr_ratio, y, colour = Drug, fill = Drug)) +
+  ggplot2::ggplot(d, ggplot2::aes(.data[[xvar]], y, colour = Drug, fill = Drug)) +
     ggplot2::geom_smooth(method = "loess", formula = y ~ x, span = 0.9,
                          se = TRUE, alpha = 0.10, linewidth = 0.9) +
-    ggplot2::coord_cartesian(xlim = c(0.4, 1.4), ylim = c(0, 100)) +
-    ggplot2::labs(x = "eGFR ratio  (CKD-EPI Cys 2012 / Cr 2021)",
-                  y = paste0("% ", tolower(direction), "d"),
+    ggplot2::coord_cartesian(xlim = xlim, ylim = c(0, 100)) +
+    ggplot2::labs(x = xlab, y = paste0("% ", tolower(direction), "d"),
                   title = ttl, colour = NULL, fill = NULL) +
     ggplot2::theme_minimal(base_size = 11) +
     ggplot2::theme(legend.position = "right",
                    plot.title = ggplot2::element_text(face = "bold", size = 11))
 }
+# X-axis for the difference LOESS set (indexed Cys − Cr, mL/min/1.73 m²).
+DIFF_XLAB <- "eGFR difference  (CKD-EPI Cys 2012 − Cr 2021, mL/min/1.73 m²)"
+DIFF_XLIM <- c(-50, 20)
 
 # Emit every drug × direction for one scale/version (call inside a results='asis'
 # chunk). Saves each table to Word and prints it with a download link.
@@ -714,6 +721,56 @@ for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Overdose"))
 #| fig-width: 7
 #| fig-height: 4
 for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Underdose"))
+```
+
+
+# LOESS (difference) — over/under-dose probability vs eGFR difference (Cys − Cr)
+
+Identical to the LOESS section above, but the x-axis is the **eGFR difference = CKD-EPI Cys (2012)
+− CKD-EPI Cr (2021)** (mL/min/1.73 m²) instead of the ratio. Negative = cystatin-eGFR below
+creatinine-eGFR (creatinine reads function higher). Same **6 equations** (the two that define the
+difference are excluded as self-referential), 5 drugs overlaid, index/non-index × over/under
+(**24 plots total**). As with the ratio, creatinine-equation overdose curves *fall* as the
+difference rises while cystatin-equation curves *rise*.
+
+## Indexed GFR (mL/min/1.73 m²)
+
+### Overdose
+
+```{r}
+#| label: loessd-idx-over
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(loess_plot(cl_index, eq, "Overdose", "egfr_diff", DIFF_XLAB, DIFF_XLIM))
+```
+
+### Underdose
+
+```{r}
+#| label: loessd-idx-under
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(loess_plot(cl_index, eq, "Underdose", "egfr_diff", DIFF_XLAB, DIFF_XLIM))
+```
+
+## Non-indexed GFR (absolute mL/min)
+
+### Overdose
+
+```{r}
+#| label: loessd-nix-over
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Overdose", "egfr_diff", DIFF_XLAB, DIFF_XLIM))
+```
+
+### Underdose
+
+```{r}
+#| label: loessd-nix-under
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Underdose", "egfr_diff", DIFF_XLAB, DIFF_XLIM))
 ```
 
 
