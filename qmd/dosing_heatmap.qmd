@@ -7,6 +7,10 @@ execute:
   echo: false
   warning: false
   message: false
+format:
+  html:
+    fig-dpi: 96
+    fig-format: png
 ---
 
 # 1 Setup {.content-hidden}
