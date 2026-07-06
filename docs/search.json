@@ -187,5 +187,19 @@
     "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
     "section": "Non-indexed GFR (absolute mL/min)",
     "text": "Non-indexed GFR (absolute mL/min)\n\nOverdose\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose"
+  },
+  {
+    "objectID": "qmd/dosing_heatmap.html#muscle-z-score-loess-465-body-composition-cohort",
+    "href": "qmd/dosing_heatmap.html#muscle-z-score-loess-465-body-composition-cohort",
+    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
+    "section": "Muscle Z-score (LOESS, 465 body-composition cohort)",
+    "text": "Muscle Z-score (LOESS, 465 body-composition cohort)\nY = % over- (or under-) dosed; x = muscle Z-score (SMI). Mechanistically, lower muscle Z (less muscle) lowers serum creatinine, so creatinine-based equations can read GFR falsely high → overdose; cystatin-based equations are muscle-independent. The curves show how this plays out across the muscle spectrum (CIs widen at the sparse extremes). N = 465; indexed GFR.\n\nOverdose\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose"
+  },
+  {
+    "objectID": "qmd/dosing_heatmap.html#ecog-performance-status-whole-1200-cohort",
+    "href": "qmd/dosing_heatmap.html#ecog-performance-status-whole-1200-cohort",
+    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
+    "section": "ECOG performance status (whole 1,200 cohort)",
+    "text": "ECOG performance status (whole 1,200 cohort)\nY = % over- (or under-) dosed; x = ECOG group. ECOG 2 and 3 are lumped as ≥2 (only 8 patients are ECOG 3); the N for each group (0 = 745 · 1 = 384 · ≥2 = 71) is printed under the x-axis. One line per drug, per equation.\n\nOverdose\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose"
   }
 ]

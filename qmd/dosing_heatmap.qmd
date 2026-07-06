@@ -89,6 +89,8 @@ dat <- raw %>%
     met_grp = factor(metastasis, levels = c(0, 1),
                      labels = c("Not metastatic", "Metastatic")),
     age_grp = factor(ifelse(age >= 70, ">=70", "<70"), levels = c("<70", ">=70")),
+    # ECOG performance status; only 8 patients are ECOG 3, so lump 2+3 -> "≥2".
+    ecog_grp = factor(ifelse(ecog >= 2, "≥2", as.character(ecog)), levels = c("0", "1", "≥2")),
     # LOESS x-axes: eGFRcys (CKD-EPI 2012) vs eGFRcr (CKD-EPI 2021). The RATIO is
     # scale-invariant; the DIFFERENCE is not, so it is taken on the indexed scale
     # (mL/min/1.73 m²). Both use the index columns.
@@ -104,7 +106,8 @@ dat <- raw %>%
 dat <- dat %>% dplyr::mutate(
   in_bodycomp = protocol %in% .bc$protocol,
   sarc_grp = factor(.bc$sarcopenia_prado[match(protocol, .bc$protocol)],
-                    levels = c(0, 1), labels = c("Non-sarcopenic", "Sarcopenic"))
+                    levels = c(0, 1), labels = c("Non-sarcopenic", "Sarcopenic")),
+  muscle_z = .bc$z_score[match(protocol, .bc$protocol)]   # muscle (SMI) Z-score
 )
 
 # --- Equation registry: type + label + index/non-index columns -------------
@@ -161,8 +164,8 @@ build_class_long <- function(scale = c("index", "nonindex"), data = dat) {
     if (scale == "index") r$index_col[[1]] else r$nonindex_col[[1]]
   }
   mgfr <- data[[MGFR[[scale]]]]
-  base <- dplyr::select(data, sex, bmi_grp, met_grp, age_grp,
-                        egfr_ratio, egfr_diff, egfr_pctdiff, sarc_grp)
+  base <- dplyr::select(data, sex, bmi_grp, met_grp, age_grp, ecog_grp,
+                        egfr_ratio, egfr_diff, egfr_pctdiff, sarc_grp, muscle_z)
   tier <- purrr::map_dfr(reg$equation, function(eq) {
     g <- data[[col_of(eq)]]
     purrr::map_dfr(TIER_DRUGS, function(dr)
@@ -327,6 +330,32 @@ DIFF_XLIM <- c(-50, 20)
 # X-axis for the % difference LOESS set ((Cr − Cys)/Cr × 100; scale-invariant).
 PCTD_XLAB <- "eGFR % difference  [(CKD-EPI Cr 2021 − Cys 2012) / Cr 2021, %]"
 PCTD_XLIM <- c(-20, 50)
+# X-axis for the muscle Z-score LOESS (465 body-comp cohort).
+MZ_XLAB <- "Muscle Z-score (SMI)"
+MZ_XLIM <- c(-3, 2)
+
+# ECOG distribution: % over/under-dose by ECOG group (0 / 1 / ≥2), one line per
+# drug, per equation. N per ECOG group is annotated on the x-axis labels.
+ecog_plot <- function(cl, eq, direction) {
+  r <- reg[reg$equation == eq, ]; ttl <- paste0(r$type, " · ", r$label)
+  s <- cl %>%
+    dplyr::filter(equation == eq, !is.na(cls), !is.na(ecog_grp)) %>%
+    dplyr::mutate(Drug = factor(drug, levels = DRUG_IDS, labels = DRUG_LABS))
+  agg <- s %>% dplyr::group_by(Drug, ecog_grp) %>%
+    dplyr::summarise(pct = mean(cls == direction) * 100, .groups = "drop")
+  ns <- s %>% dplyr::filter(drug == DRUG_IDS[1]) %>% dplyr::count(ecog_grp)
+  xl <- paste0(levels(s$ecog_grp), "\n(N=",
+               ns$n[match(levels(s$ecog_grp), as.character(ns$ecog_grp))], ")")
+  ggplot2::ggplot(agg, ggplot2::aes(ecog_grp, pct, colour = Drug, group = Drug)) +
+    ggplot2::geom_line(linewidth = 0.9) + ggplot2::geom_point(size = 2.2) +
+    ggplot2::scale_x_discrete(labels = xl) +
+    ggplot2::coord_cartesian(ylim = c(0, NA)) +
+    ggplot2::labs(x = "ECOG performance status", y = paste0("% ", tolower(direction), "d"),
+                  title = ttl, colour = NULL) +
+    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme(legend.position = "right",
+                   plot.title = ggplot2::element_text(face = "bold", size = 11))
+}
 
 # Emit every drug × direction for one scale/version (call inside a results='asis'
 # chunk). Saves each table to Word and prints it with a download link.
@@ -835,6 +864,61 @@ for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Overdose", "egfr_pctdif
 #| fig-width: 7
 #| fig-height: 4
 for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Underdose", "egfr_pctdiff", PCTD_XLAB, PCTD_XLIM))
+```
+
+
+# Frailty markers — muscle Z-score & ECOG
+
+Two additional views of dosing error against markers of frailty, in the same per-equation /
+5-drugs-overlaid format. Over/under-dose is always vs **measured GFR**. Indexed GFR classification.
+
+## Muscle Z-score  (LOESS, 465 body-composition cohort)
+
+**Y = % over- (or under-) dosed; x = muscle Z-score (SMI).** Mechanistically, lower muscle Z (less
+muscle) lowers serum creatinine, so **creatinine-based** equations can read GFR falsely high →
+overdose; cystatin-based equations are muscle-independent. The curves show how this plays out across
+the muscle spectrum (CIs widen at the sparse extremes). N = 465; indexed GFR.
+
+### Overdose
+
+```{r}
+#| label: mz-over
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(loess_plot(cl_index_465, eq, "Overdose", "muscle_z", MZ_XLAB, MZ_XLIM))
+```
+
+### Underdose
+
+```{r}
+#| label: mz-under
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(loess_plot(cl_index_465, eq, "Underdose", "muscle_z", MZ_XLAB, MZ_XLIM))
+```
+
+## ECOG performance status  (whole 1,200 cohort)
+
+**Y = % over- (or under-) dosed; x = ECOG group.** ECOG 2 and 3 are lumped as **≥2** (only 8 patients
+are ECOG 3); the **N** for each group (0 = 745 · 1 = 384 · ≥2 = 71) is printed under the x-axis. One
+line per drug, per equation.
+
+### Overdose
+
+```{r}
+#| label: ecog-over
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose"))
+```
+
+### Underdose
+
+```{r}
+#| label: ecog-under
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose"))
 ```
 
 
