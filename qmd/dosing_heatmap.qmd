@@ -11,6 +11,7 @@ format:
   html:
     fig-dpi: 96
     fig-format: png
+    code-fold: true
 ---
 
 # 1 Setup {.content-hidden}
@@ -897,28 +898,84 @@ for (eq in LOESS_EQS) print(loess_plot(cl_index_465, eq, "Overdose", "muscle_z",
 for (eq in LOESS_EQS) print(loess_plot(cl_index_465, eq, "Underdose", "muscle_z", MZ_XLAB, MZ_XLIM))
 ```
 
-## ECOG performance status  (whole 1,200 cohort)
+## Derived dose variables
 
-**Y = % over- (or under-) dosed; x = ECOG group.** ECOG 2 and 3 are lumped as **≥2** (only 8 patients
-are ECOG 3); the **N** for each group (0 = 745 · 1 = 384 · ≥2 = 71) is printed under the x-axis. One
-line per drug, per equation.
+Per-patient binary flags (**1 = yes, 0 = no**), computed **for each equation** on the indexed scale
+vs measured GFR (whole 1,200 cohort):
 
-### Overdose
+| Variable | Definition (per equation, vs mGFR) |
+|---|---|
+| `cisplatin_eligible` | equation GFR ≥ 40 → cisplatin-eligible (not "avoid") |
+| `carbo15_over` | Calvert dose > **15 %** above the mGFR AUC-5 dose |
+| `carbo15_under` | Calvert dose > **15 %** below the mGFR AUC-5 dose |
+| `carbo20_over` | Calvert dose > **20 %** above the mGFR AUC-5 dose |
+| `carbo20_under` | Calvert dose > **20 %** below the mGFR AUC-5 dose |
+
+The code that creates them (click **▸ Code** to expand):
 
 ```{r}
-#| label: ecog-over
-#| fig-width: 7
-#| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose"))
+#| label: dose-vars
+#| echo: true
+dose_vars <- purrr::map_dfr(reg$equation, function(eq) {
+  g <- dat[[reg$index_col[reg$equation == eq]]]   # this equation's indexed GFR
+  m <- dat$mGFRindex                              # measured GFR (indexed)
+  tibble::tibble(
+    equation = eq, ecog_grp = dat$ecog_grp,
+    cisplatin_eligible = as.integer(dose_tier(g, "cisplatin") > 0),
+    carbo15_over  = as.integer(carbo_class(g, m, 5.75, 4.25) == "Overdose"),
+    carbo15_under = as.integer(carbo_class(g, m, 5.75, 4.25) == "Underdose"),
+    carbo20_over  = as.integer(carbo_class(g, m, 6, 4)       == "Overdose"),
+    carbo20_under = as.integer(carbo_class(g, m, 6, 4)       == "Underdose"))
+}) %>% dplyr::left_join(dplyr::select(reg, equation, type, label), by = "equation")
 ```
 
-### Underdose
+Overall rate (% yes) of each flag, by equation:
 
 ```{r}
-#| label: ecog-under
-#| fig-width: 7
-#| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose"))
+#| label: dose-vars-summary
+dose_vars %>%
+  dplyr::transmute(Equation = paste(type, "·", label),
+                   cisplatin_eligible, carbo15_over, carbo15_under, carbo20_over, carbo20_under) %>%
+  dplyr::group_by(Equation) %>%
+  dplyr::summarise(dplyr::across(dplyr::everything(), ~ round(mean(.x) * 100, 1)), .groups = "drop") %>%
+  knitr::kable(col.names = c("Equation", "Cispl. eligible %", "Carbo15 over %",
+                             "Carbo15 under %", "Carbo20 over %", "Carbo20 under %"))
+```
+
+## ECOG performance status  (whole 1,200 cohort)
+
+Bars (histogram) of each dose flag by **ECOG group** (0 / 1 / ≥2; ECOG 2+3 lumped, only n = 8 are
+ECOG 3), **faceted by equation**, all in one figure. N per ECOG group is under the x-axis. For
+cisplatin the **ineligible** (avoid) rate is shown so it is on the same scale as the carboplatin
+over/under rates.
+
+```{r}
+#| label: ecog-bars
+#| fig-width: 9
+#| fig-height: 12
+lv <- c("Cisplatin ineligible", "Carbo15 over", "Carbo15 under", "Carbo20 over", "Carbo20 under")
+pf <- dose_vars %>%
+  dplyr::filter(!is.na(ecog_grp)) %>%
+  dplyr::transmute(
+    Equation = factor(paste(type, "·", label), levels = paste(reg$type, "·", reg$label)),
+    ecog_grp,
+    `Cisplatin ineligible` = 1 - cisplatin_eligible,
+    `Carbo15 over` = carbo15_over, `Carbo15 under` = carbo15_under,
+    `Carbo20 over` = carbo20_over, `Carbo20 under` = carbo20_under) %>%
+  dplyr::group_by(Equation, ecog_grp) %>%
+  dplyr::summarise(dplyr::across(dplyr::all_of(lv), ~ mean(.x) * 100), .groups = "drop") %>%
+  tidyr::pivot_longer(dplyr::all_of(lv), names_to = "Outcome", values_to = "pct") %>%
+  dplyr::mutate(Outcome = factor(Outcome, levels = lv))
+ns <- dat %>% dplyr::filter(!is.na(ecog_grp)) %>% dplyr::count(ecog_grp)
+xl <- paste0(levels(dat$ecog_grp), "\n(N=", ns$n[match(levels(dat$ecog_grp), ns$ecog_grp)], ")")
+ggplot2::ggplot(pf, ggplot2::aes(ecog_grp, pct, fill = Outcome)) +
+  ggplot2::geom_col(position = ggplot2::position_dodge(0.8), width = 0.75) +
+  ggplot2::facet_wrap(~ Equation, ncol = 2) +
+  ggplot2::scale_x_discrete(labels = xl) +
+  ggplot2::labs(x = "ECOG performance status", y = "% of patients", fill = NULL,
+                title = "Dose-flag rates by ECOG (whole 1,200 cohort)") +
+  ggplot2::theme_minimal(base_size = 10) +
+  ggplot2::theme(legend.position = "top")
 ```
 
 
