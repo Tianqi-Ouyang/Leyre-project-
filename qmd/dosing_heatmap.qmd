@@ -114,6 +114,10 @@ dat <- dat %>% dplyr::mutate(
   muscle_z = .bc$z_score[match(protocol, .bc$protocol)]   # muscle (SMI) Z-score
 )
 
+# Fried frailty class (separate file; key is misspelled 'protocal'); 592 of 1200 have it.
+.fr <- suppressWarnings(readxl::read_excel("Data/Frailty data to MGH.xlsx"))
+dat$fried_grp <- factor(.fr$fried_classification[match(dat$protocol, .fr$protocal)], levels = c(0, 1, 2))
+
 # --- Equation registry: type + label + index/non-index columns -------------
 # Reference = measured GFR. Note: the creatinine CKD-EPI column is the 2021
 # (race-free) equation; the hyphen in "EKFCcrcysnon-index" is intentional.
@@ -168,7 +172,7 @@ build_class_long <- function(scale = c("index", "nonindex"), data = dat) {
     if (scale == "index") r$index_col[[1]] else r$nonindex_col[[1]]
   }
   mgfr <- data[[MGFR[[scale]]]]
-  base <- dplyr::select(data, sex, bmi_grp, met_grp, age_grp, ecog_grp,
+  base <- dplyr::select(data, sex, bmi_grp, met_grp, age_grp, ecog_grp, fried_grp,
                         egfr_ratio, egfr_diff, egfr_pctdiff, sarc_grp, muscle_z)
   tier <- purrr::map_dfr(reg$equation, function(eq) {
     g <- data[[col_of(eq)]]
@@ -340,24 +344,27 @@ MZ_XLIM <- c(-3, 2)
 
 # ECOG distribution: % over/under-dose by ECOG group (0 / 1 / ≥2), one line per
 # drug, per equation. N per ECOG group is annotated on the x-axis labels.
-ecog_plot <- function(cl, eq, direction) {
+# Grouped-bar plot of % over/under-dose by a categorical group (`grpcol`); 5 drug
+# bars per group, sorted low->high. Used for ECOG and Fried frailty.
+ecog_plot <- function(cl, eq, direction, grpcol = "ecog_grp", xlab = "ECOG performance status") {
   r <- reg[reg$equation == eq, ]; ttl <- paste0(r$type, " · ", r$label)
   s <- cl %>%
-    dplyr::filter(equation == eq, !is.na(cls), !is.na(ecog_grp)) %>%
-    dplyr::mutate(Drug = factor(drug, levels = DRUG_IDS, labels = DRUG_LABS))
-  agg <- s %>% dplyr::group_by(ecog_grp, Drug) %>%
+    dplyr::filter(equation == eq, !is.na(cls), !is.na(.data[[grpcol]])) %>%
+    dplyr::mutate(Drug = factor(drug, levels = DRUG_IDS, labels = DRUG_LABS),
+                  grp  = .data[[grpcol]])
+  agg <- s %>% dplyr::group_by(grp, Drug) %>%
     dplyr::summarise(pct = mean(cls == direction) * 100, .groups = "drop_last") %>%
-    dplyr::arrange(pct, .by_group = TRUE) %>%        # low -> high within each ECOG group
-    dplyr::mutate(xpos = as.integer(ecog_grp) + (dplyr::row_number() - 3) * 0.17) %>%
+    dplyr::arrange(pct, .by_group = TRUE) %>%        # low -> high within each group
+    dplyr::mutate(xpos = as.integer(grp) + (dplyr::row_number() - 3) * 0.17) %>%
     dplyr::ungroup()
-  ns <- s %>% dplyr::filter(drug == DRUG_IDS[1]) %>% dplyr::count(ecog_grp)
-  xl <- paste0(levels(s$ecog_grp), "\n(N=",
-               ns$n[match(levels(s$ecog_grp), as.character(ns$ecog_grp))], ")")
+  ns <- s %>% dplyr::filter(drug == DRUG_IDS[1]) %>% dplyr::count(grp)
+  xl <- paste0(levels(s$grp), "\n(N=",
+               ns$n[match(levels(s$grp), as.character(ns$grp))], ")")
   ggplot2::ggplot(agg, ggplot2::aes(xpos, pct, fill = Drug)) +
     ggplot2::geom_col(width = 0.16) +
     ggplot2::scale_x_continuous(breaks = seq_along(xl), labels = xl) +
     ggplot2::coord_cartesian(ylim = c(0, NA)) +
-    ggplot2::labs(x = "ECOG performance status", y = paste0("% ", tolower(direction), "d"),
+    ggplot2::labs(x = xlab, y = paste0("% ", tolower(direction), "d"),
                   title = ttl, fill = NULL) +
     ggplot2::theme_minimal(base_size = 11) +
     ggplot2::theme(legend.position = "right",
@@ -970,6 +977,32 @@ for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose"))
 #| fig-width: 7
 #| fig-height: 4
 for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose"))
+```
+
+
+## Fried frailty classification  (592 patients with a Fried class)
+
+Same bar plots as ECOG but **x = Fried frailty class** (from `Frailty data to MGH.xlsx`, joined on
+`protocol`), limited to the **592** patients who have a Fried classification. N per group is under
+the x-axis; the 5 drug bars are sorted low→high within each class. Classes shown as **0 / 1 / 2**
+(likely robust / pre-frail / frail — confirm the mapping).
+
+### Overdose
+
+```{r}
+#| label: fried-over
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose", "fried_grp", "Fried frailty class (0/1/2)"))
+```
+
+### Underdose
+
+```{r}
+#| label: fried-under
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose", "fried_grp", "Fried frailty class (0/1/2)"))
 ```
 
 
