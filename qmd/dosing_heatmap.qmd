@@ -4,7 +4,7 @@ author: "Tianqi Ouyang"
 date: "2026-05-29"
 execute:
   eval: true
-  echo: false
+  echo: true
   warning: false
   message: false
 format:
@@ -14,7 +14,7 @@ format:
     code-fold: true
 ---
 
-# 1 Setup {.content-hidden}
+# 1 Setup
 
 ```{r}
 #| label: setup-onco
@@ -73,7 +73,10 @@ ramp_fill <- function(x, stops, dom = 30) {
 CONT_STOPS <- c("#FFEDA0", "#FEB24C", "#F03B20", "#B2182B")
 ```
 
-# 2 Data Management {.content-hidden}
+# 2 Data Management {#sec-data}
+
+All variables used in this report are created in the code chunk below (click **▸ Code** to expand).
+Every other section's code is likewise available under its own **▸ Code** button.
 
 ```{r}
 #| label: data-onco
