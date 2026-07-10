@@ -345,14 +345,17 @@ ecog_plot <- function(cl, eq, direction) {
   s <- cl %>%
     dplyr::filter(equation == eq, !is.na(cls), !is.na(ecog_grp)) %>%
     dplyr::mutate(Drug = factor(drug, levels = DRUG_IDS, labels = DRUG_LABS))
-  agg <- s %>% dplyr::group_by(Drug, ecog_grp) %>%
-    dplyr::summarise(pct = mean(cls == direction) * 100, .groups = "drop")
+  agg <- s %>% dplyr::group_by(ecog_grp, Drug) %>%
+    dplyr::summarise(pct = mean(cls == direction) * 100, .groups = "drop_last") %>%
+    dplyr::arrange(pct, .by_group = TRUE) %>%        # low -> high within each ECOG group
+    dplyr::mutate(xpos = as.integer(ecog_grp) + (dplyr::row_number() - 3) * 0.17) %>%
+    dplyr::ungroup()
   ns <- s %>% dplyr::filter(drug == DRUG_IDS[1]) %>% dplyr::count(ecog_grp)
   xl <- paste0(levels(s$ecog_grp), "\n(N=",
                ns$n[match(levels(s$ecog_grp), as.character(ns$ecog_grp))], ")")
-  ggplot2::ggplot(agg, ggplot2::aes(ecog_grp, pct, fill = Drug)) +
-    ggplot2::geom_col(position = ggplot2::position_dodge(0.8), width = 0.75) +
-    ggplot2::scale_x_discrete(labels = xl) +
+  ggplot2::ggplot(agg, ggplot2::aes(xpos, pct, fill = Drug)) +
+    ggplot2::geom_col(width = 0.16) +
+    ggplot2::scale_x_continuous(breaks = seq_along(xl), labels = xl) +
     ggplot2::coord_cartesian(ylim = c(0, NA)) +
     ggplot2::labs(x = "ECOG performance status", y = paste0("% ", tolower(direction), "d"),
                   title = ttl, fill = NULL) +
