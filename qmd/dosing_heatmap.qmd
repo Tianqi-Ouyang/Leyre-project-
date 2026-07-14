@@ -118,6 +118,14 @@ dat <- dat %>% dplyr::mutate(
 .fr <- suppressWarnings(readxl::read_excel("Data/Frailty data to MGH.xlsx"))
 dat$fried_grp <- factor(.fr$fried_classification[match(dat$protocol, .fr$protocal)], levels = c(0, 1, 2))
 
+# Nutrition markers (separate file; key = 'Protocol Number'); 689 of 1200 have them.
+# Cachexia (0 = No, 1 = Yes) and ASG-PPP / PG-SGA global rating (coded 1/2 — confirm mapping).
+.nut <- suppressWarnings(readxl::read_excel("Data/Nutrition data.xlsx"))
+names(.nut) <- trimws(names(.nut))
+.nut_key <- match(dat$protocol, .nut$`Protocol Number`)
+dat$cachexia_grp <- factor(.nut$Cachexia[.nut_key], levels = c(0, 1), labels = c("No", "Yes"))
+dat$asgppp_grp   <- factor(.nut$`ASG-PPP`[.nut_key], levels = c(1, 2), labels = c("1", "2"))
+
 # --- Equation registry: type + label + index/non-index columns -------------
 # Reference = measured GFR. Note: the creatinine CKD-EPI column is the 2021
 # (race-free) equation; the hyphen in "EKFCcrcysnon-index" is intentional.
@@ -173,7 +181,8 @@ build_class_long <- function(scale = c("index", "nonindex"), data = dat) {
   }
   mgfr <- data[[MGFR[[scale]]]]
   base <- dplyr::select(data, sex, bmi_grp, met_grp, age_grp, ecog_grp, fried_grp,
-                        egfr_ratio, egfr_diff, egfr_pctdiff, sarc_grp, muscle_z)
+                        egfr_ratio, egfr_diff, egfr_pctdiff, sarc_grp, muscle_z,
+                        cachexia_grp, asgppp_grp)
   tier <- purrr::map_dfr(reg$equation, function(eq) {
     g <- data[[col_of(eq)]]
     purrr::map_dfr(TIER_DRUGS, function(dr)
@@ -346,7 +355,7 @@ MZ_XLIM <- c(-3, 2)
 # drug, per equation. N per ECOG group is annotated on the x-axis labels.
 # Grouped-bar plot of % over/under-dose by a categorical group (`grpcol`); 5 drug
 # bars per group, sorted low->high. Used for ECOG and Fried frailty.
-ecog_plot <- function(cl, eq, direction, grpcol = "ecog_grp", xlab = "ECOG performance status") {
+ecog_plot <- function(cl, eq, direction, grpcol = "ecog_grp", xlab = "ECOG performance status", ymax = NA) {
   r <- reg[reg$equation == eq, ]; ttl <- paste0(r$type, " · ", r$label)
   s <- cl %>%
     dplyr::filter(equation == eq, !is.na(cls), !is.na(.data[[grpcol]])) %>%
@@ -363,7 +372,7 @@ ecog_plot <- function(cl, eq, direction, grpcol = "ecog_grp", xlab = "ECOG perfo
   ggplot2::ggplot(agg, ggplot2::aes(xpos, pct, fill = Drug)) +
     ggplot2::geom_col(width = 0.16) +
     ggplot2::scale_x_continuous(breaks = seq_along(xl), labels = xl) +
-    ggplot2::coord_cartesian(ylim = c(0, NA)) +
+    ggplot2::coord_cartesian(ylim = c(0, ymax)) +
     ggplot2::labs(x = xlab, y = paste0("% ", tolower(direction), "d"),
                   title = ttl, fill = NULL) +
     ggplot2::theme_minimal(base_size = 11) +
@@ -967,7 +976,7 @@ line per drug, per equation.
 #| label: ecog-over
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose"))
+for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose", ymax = 50))
 ```
 
 ### Underdose
@@ -976,7 +985,7 @@ for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose"))
 #| label: ecog-under
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose"))
+for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose", ymax = 50))
 ```
 
 
@@ -993,7 +1002,7 @@ the x-axis; the 5 drug bars are sorted low→high within each class. Classes sho
 #| label: fried-over
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose", "fried_grp", "Fried frailty class (0/1/2)"))
+for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose", "fried_grp", "Fried frailty class (0/1/2)", ymax = 50))
 ```
 
 ### Underdose
@@ -1002,7 +1011,59 @@ for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose", "fried_grp", "Fr
 #| label: fried-under
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose", "fried_grp", "Fried frailty class (0/1/2)"))
+for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose", "fried_grp", "Fried frailty class (0/1/2)", ymax = 50))
+```
+
+
+## Cachexia  (689 patients with nutrition data)
+
+Same bar plots as ECOG but **x = Cachexia** (from `Nutrition data.xlsx`, joined on `protocol`),
+limited to the **689** patients who have nutrition data. Cachexia is coded **No / Yes**
+(No = 463 · Yes = 226); the **N** for each group is printed under the x-axis and the 5 drug bars
+are sorted low→high within each group. Y-axis fixed at 0–50 to match the other panels.
+
+### Overdose
+
+```{r}
+#| label: cachexia-over
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose", "cachexia_grp", "Cachexia", ymax = 50))
+```
+
+### Underdose
+
+```{r}
+#| label: cachexia-under
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose", "cachexia_grp", "Cachexia", ymax = 50))
+```
+
+
+## ASG-PPP (PG-SGA)  (689 patients with nutrition data)
+
+Same bar plots but **x = ASG-PPP** (Patient-Generated Subjective Global Assessment; from
+`Nutrition data.xlsx`, joined on `protocol`), limited to the **689** patients with nutrition data.
+Coded **1 / 2** (1 = 387 · 2 = 302 — **confirm which level is well-nourished vs malnourished**).
+N per group is under the x-axis; the 5 drug bars are sorted low→high. Y-axis fixed at 0–50.
+
+### Overdose
+
+```{r}
+#| label: asgppp-over
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose", "asgppp_grp", "ASG-PPP (PG-SGA)", ymax = 50))
+```
+
+### Underdose
+
+```{r}
+#| label: asgppp-under
+#| fig-width: 7
+#| fig-height: 4
+for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose", "asgppp_grp", "ASG-PPP (PG-SGA)", ymax = 50))
 ```
 
 

@@ -1,108 +1,10 @@
 [
   {
-    "objectID": "qmd/dosing_heatmap.html#carboplatin-20",
-    "href": "qmd/dosing_heatmap.html#carboplatin-20",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "3.1 Carboplatin (±20%)",
-    "text": "3.1 Carboplatin (±20%)\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 202124.328.920.045.930.322.518.223.628.7EKFC 20219.411.57.411.512.310.15.89.111.2eGFRcysCKD-EPI 20125.88.03.88.27.36.73.06.61.7EKFC 20234.57.02.14.95.05.33.05.01.7eGFRcr-cysCKD-EPI 202111.816.67.019.715.711.18.012.76.2EKFC 20235.07.62.511.55.05.03.95.23.9ClCrCockcroft-Gault27.440.714.611.516.324.243.527.825.3PanelCKD-EPI 4-marker6.68.15.113.18.75.94.76.94.5\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 20211.41.71.10.00.30.83.31.60.6EKFC 20212.82.52.90.00.72.55.23.01.1eGFRcysCKD-EPI 20129.56.812.11.66.310.312.48.316.3EKFC 20238.44.212.41.65.79.710.27.314.6eGFRcr-cysCKD-EPI 20211.51.21.80.00.71.91.91.51.7EKFC 20232.71.93.41.60.72.94.12.72.2ClCrCockcroft-Gault1.81.02.50.02.02.31.11.91.1PanelCKD-EPI 4-marker1.51.71.30.00.71.91.91.51.7\n\n\n📄 Overdose table · 📄 Underdose table"
-  },
-  {
-    "objectID": "qmd/dosing_heatmap.html#carboplatin-15",
-    "href": "qmd/dosing_heatmap.html#carboplatin-15",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "3.2 Carboplatin (±15%)",
-    "text": "3.2 Carboplatin (±15%)\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 202135.339.930.959.040.735.327.034.241.6EKFC 202115.717.813.632.820.015.39.614.721.3eGFRcysCKD-EPI 201210.714.47.014.815.310.76.111.74.5EKFC 20238.113.23.18.210.08.06.68.55.6eGFRcr-cysCKD-EPI 202119.524.814.437.727.017.612.720.513.5EKFC 20238.813.64.314.810.78.66.69.26.7ClCrCockcroft-Gault35.552.319.319.722.733.052.135.634.8PanelCKD-EPI 4-marker12.814.811.021.317.712.28.313.68.4\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 20212.32.22.50.00.72.34.12.41.7EKFC 20217.25.39.00.04.07.410.77.36.2eGFRcysCKD-EPI 201220.716.824.46.615.021.027.319.328.7EKFC 202317.19.824.13.313.318.720.415.924.2eGFRcr-cysCKD-EPI 20213.93.24.61.62.04.25.53.84.5EKFC 20238.25.411.01.63.38.812.78.37.9ClCrCockcroft-Gault4.82.57.01.66.75.72.85.32.2PanelCKD-EPI 4-marker4.55.33.81.61.74.86.94.26.2\n\n\n📄 Overdose table · 📄 Underdose table"
-  },
-  {
-    "objectID": "qmd/dosing_heatmap.html#cisplatin",
-    "href": "qmd/dosing_heatmap.html#cisplatin",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "3.3 Cisplatin",
-    "text": "3.3 Cisplatin\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 202112.811.214.414.817.312.69.111.520.2EKFC 20219.68.810.311.512.310.16.38.615.2eGFRcysCKD-EPI 20123.74.13.33.36.02.92.83.63.9EKFC 20235.06.53.63.37.74.83.34.95.6eGFRcr-cysCKD-EPI 20218.48.18.711.512.08.64.77.712.4EKFC 20237.37.57.29.811.36.54.76.711.2ClCrCockcroft-Gault10.211.09.51.69.010.312.79.614.0PanelCKD-EPI 4-marker9.18.39.811.512.78.86.18.412.9\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 20212.11.92.30.01.32.32.82.12.2EKFC 20216.64.68.51.63.38.28.06.76.2eGFRcysCKD-EPI 201219.815.423.913.118.719.721.818.228.7EKFC 202315.08.820.98.214.015.516.313.523.6eGFRcr-cysCKD-EPI 20214.64.15.10.03.05.06.13.98.4EKFC 20237.74.910.31.64.79.09.47.39.6ClCrCockcroft-Gault6.64.19.011.510.06.72.86.66.7PanelCKD-EPI 4-marker4.34.83.90.03.04.65.83.77.9\n\n\n📄 Overdose table · 📄 Underdose table"
-  },
-  {
-    "objectID": "qmd/dosing_heatmap.html#methotrexate",
-    "href": "qmd/dosing_heatmap.html#methotrexate",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "3.4 Methotrexate",
-    "text": "3.4 Methotrexate\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 202123.229.417.249.223.722.918.723.421.9EKFC 20219.211.96.526.210.78.46.19.010.1eGFRcysCKD-EPI 20129.812.77.018.011.09.97.410.84.5EKFC 20236.810.92.916.48.05.75.87.15.1eGFRcr-cysCKD-EPI 202114.718.710.826.219.314.59.115.410.7EKFC 20235.48.02.914.87.04.24.15.64.5ClCrCockcroft-Gault22.132.112.418.016.720.030.022.221.3PanelCKD-EPI 4-marker8.29.56.919.710.77.45.28.46.7\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 20212.72.52.81.61.72.53.92.81.7EKFC 20218.37.59.26.65.78.810.28.76.2eGFRcysCKD-EPI 201210.99.512.36.610.011.311.810.115.7EKFC 202310.68.712.48.210.011.610.29.914.6eGFRcr-cysCKD-EPI 20214.23.74.60.04.04.64.43.67.3EKFC 20238.87.010.56.67.79.09.68.69.6ClCrCockcroft-Gault4.12.95.28.26.03.82.24.23.4PanelCKD-EPI 4-marker6.58.14.93.34.76.58.56.75.6\n\n\n📄 Overdose table · 📄 Underdose table"
-  },
-  {
-    "objectID": "qmd/dosing_heatmap.html#melphalan",
-    "href": "qmd/dosing_heatmap.html#melphalan",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "3.5 Melphalan",
-    "text": "3.5 Melphalan\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 202110.39.211.513.113.39.58.59.515.2EKFC 20217.26.87.56.68.37.16.36.511.2eGFRcysCKD-EPI 20122.72.92.51.64.32.51.72.43.9EKFC 20233.74.42.91.65.03.82.83.54.5eGFRcr-cysCKD-EPI 20216.05.86.28.29.35.73.35.77.9EKFC 20235.25.64.74.97.74.83.64.96.7ClCrCockcroft-Gault8.19.07.20.06.78.210.57.511.2PanelCKD-EPI 4-marker6.26.16.48.28.75.74.76.07.9\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 20211.61.41.80.01.01.91.91.80.6EKFC 20214.63.25.90.01.75.96.14.92.8eGFRcysCKD-EPI 201214.111.017.06.612.015.115.712.920.8EKFC 202311.26.815.44.99.712.012.410.714.0eGFRcr-cysCKD-EPI 20213.83.44.10.01.74.25.53.64.5EKFC 20235.54.16.93.33.06.56.65.36.7ClCrCockcroft-Gault4.12.45.76.65.04.81.94.32.8PanelCKD-EPI 4-marker3.13.22.90.02.03.44.13.03.4\n\n\n📄 Overdose table · 📄 Underdose table"
-  },
-  {
-    "objectID": "qmd/dosing_heatmap.html#carboplatin-20-1",
-    "href": "qmd/dosing_heatmap.html#carboplatin-20-1",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "4.1 Carboplatin (±20%)",
-    "text": "4.1 Carboplatin (±20%)\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 202124.427.721.344.329.722.519.323.828.1EKFC 20219.211.07.59.811.310.16.39.010.7eGFRcysCKD-EPI 20125.98.03.98.28.06.53.06.71.7EKFC 20234.67.12.13.35.35.53.05.02.2eGFRcr-cysCKD-EPI 202111.816.67.018.015.711.38.012.85.6EKFC 20234.87.32.38.24.75.03.94.93.9ClCrCockcroft-Gault27.340.115.111.516.023.544.427.824.7PanelCKD-EPI 4-marker6.48.04.99.88.75.75.06.83.9\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 20211.51.71.30.00.70.83.31.70.6EKFC 20213.02.53.40.00.72.75.83.21.7eGFRcysCKD-EPI 201210.17.013.11.66.710.513.88.916.9EKFC 20239.04.413.41.66.010.111.37.915.2eGFRcr-cysCKD-EPI 20211.81.22.30.00.71.92.81.81.7EKFC 20232.81.93.81.60.72.94.72.92.2ClCrCockcroft-Gault1.81.02.50.02.02.31.11.91.1PanelCKD-EPI 4-marker1.71.91.50.00.71.92.51.71.7\n\n\n📄 Overdose table · 📄 Underdose table"
-  },
-  {
-    "objectID": "qmd/dosing_heatmap.html#carboplatin-15-1",
-    "href": "qmd/dosing_heatmap.html#carboplatin-15-1",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "4.2 Carboplatin (±15%)",
-    "text": "4.2 Carboplatin (±15%)\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 202135.539.931.355.740.735.527.834.441.6EKFC 202115.517.313.731.119.015.59.914.521.3eGFRcysCKD-EPI 201210.614.17.214.814.310.96.311.73.9EKFC 20238.113.13.38.29.78.06.98.55.6eGFRcr-cysCKD-EPI 202119.825.114.637.726.318.113.520.813.5EKFC 20238.713.24.313.110.38.66.69.06.7ClCrCockcroft-Gault35.251.819.319.722.032.652.335.533.7PanelCKD-EPI 4-marker13.014.411.621.317.312.29.113.79.0\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 20212.42.22.60.01.02.34.12.51.7EKFC 20217.35.49.20.04.07.111.67.65.6eGFRcysCKD-EPI 201220.916.625.06.614.021.628.119.628.7EKFC 202317.69.825.03.313.019.720.916.324.7eGFRcr-cysCKD-EPI 20213.93.14.71.62.04.25.53.84.5EKFC 20238.85.411.91.63.78.614.38.88.4ClCrCockcroft-Gault4.92.47.40.06.75.93.05.42.2PanelCKD-EPI 4-marker4.64.94.31.61.74.67.44.45.6\n\n\n📄 Overdose table · 📄 Underdose table"
-  },
-  {
-    "objectID": "qmd/dosing_heatmap.html#cisplatin-1",
-    "href": "qmd/dosing_heatmap.html#cisplatin-1",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "4.3 Cisplatin",
-    "text": "4.3 Cisplatin\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 202113.113.812.427.920.712.25.512.019.1EKFC 20219.29.59.019.715.09.03.08.612.9eGFRcysCKD-EPI 20123.85.12.64.96.04.01.74.21.7EKFC 20234.46.12.86.66.04.82.24.82.2eGFRcr-cysCKD-EPI 20218.79.38.018.013.78.43.38.59.6EKFC 20237.48.36.516.410.77.82.87.47.3ClCrCockcroft-Gault9.211.57.06.69.710.38.09.010.7PanelCKD-EPI 4-marker9.59.39.718.015.39.23.69.410.1\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 20211.41.21.60.01.01.71.71.32.2EKFC 20214.83.95.60.04.35.55.04.84.5eGFRcysCKD-EPI 201216.214.817.511.515.018.714.614.525.8EKFC 202311.48.314.49.813.013.08.39.820.8eGFRcr-cysCKD-EPI 20214.24.14.40.04.74.83.93.49.0EKFC 20235.65.85.43.37.05.74.74.810.1ClCrCockcroft-Gault5.83.48.211.510.35.91.15.86.2PanelCKD-EPI 4-marker3.33.72.90.03.34.22.82.67.3\n\n\n📄 Overdose table · 📄 Underdose table"
-  },
-  {
-    "objectID": "qmd/dosing_heatmap.html#methotrexate-1",
-    "href": "qmd/dosing_heatmap.html#methotrexate-1",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "4.4 Methotrexate",
-    "text": "4.4 Methotrexate\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 202119.320.218.531.120.018.318.219.419.1EKFC 20219.710.49.014.810.39.58.59.610.1eGFRcysCKD-EPI 20127.89.26.411.58.38.26.18.43.9EKFC 20236.49.33.64.97.76.75.26.83.9eGFRcr-cysCKD-EPI 202112.814.411.321.314.013.29.913.111.2EKFC 20236.48.04.96.68.36.35.06.37.3ClCrCockcroft-Gault18.925.612.413.113.717.625.919.416.3PanelCKD-EPI 4-marker8.88.88.714.810.79.25.58.88.4\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 20213.02.53.40.02.33.23.93.12.2EKFC 20218.26.69.71.66.08.810.28.27.9eGFRcysCKD-EPI 201211.08.313.63.38.712.212.79.818.0EKFC 202311.17.514.64.99.711.812.410.216.3eGFRcr-cysCKD-EPI 20214.53.15.91.63.34.46.14.16.7EKFC 20239.05.911.94.97.79.99.68.710.7ClCrCockcroft-Gault4.42.26.53.35.75.32.54.53.9PanelCKD-EPI 4-marker7.27.66.91.65.37.69.47.08.4\n\n\n📄 Overdose table · 📄 Underdose table"
-  },
-  {
-    "objectID": "qmd/dosing_heatmap.html#melphalan-1",
-    "href": "qmd/dosing_heatmap.html#melphalan-1",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "4.5 Melphalan",
-    "text": "4.5 Melphalan\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 202110.311.49.321.315.39.95.09.714.0EKFC 20216.37.65.113.19.75.73.36.08.4eGFRcysCKD-EPI 20122.53.21.83.33.32.91.12.71.1EKFC 20233.03.92.14.93.33.41.93.21.7eGFRcr-cysCKD-EPI 20216.27.05.613.110.35.92.26.26.7EKFC 20234.86.33.48.27.34.82.24.85.1ClCrCockcroft-Gault6.810.03.84.97.37.46.16.59.0PanelCKD-EPI 4-marker6.27.05.611.59.75.93.06.36.2\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseeGFR typeEquationOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastaticeGFRcrCKD-EPI 20211.21.21.30.00.31.51.91.40.6EKFC 20213.53.23.80.02.33.84.73.81.7eGFRcysCKD-EPI 201212.611.713.46.610.714.312.911.618.0EKFC 20238.46.310.54.98.39.97.27.612.9eGFRcr-cysCKD-EPI 20213.22.93.40.02.73.43.93.13.4EKFC 20234.24.63.81.64.34.44.14.14.5ClCrCockcroft-Gault3.82.74.78.25.74.40.64.02.2PanelCKD-EPI 4-marker2.42.52.30.02.02.72.82.32.8\n\n\n📄 Overdose table · 📄 Underdose table"
-  },
-  {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "OncoGFR 1200 — Chemotherapy Dosing by eGFR Equation",
-    "section": "",
-    "text": "A sub-analysis of the dose project using the OncoGFR 1200 cohort, which uniquely includes a measured GFR (mGFR, ⁵¹Cr-EDTA plasma clearance) as the gold standard.\nThe analysis asks: if chemotherapy were dosed from each estimated-GFR (eGFR) equation instead of measured GFR, how often would patients be over- or under-dosed? Results are presented as heatmaps across equations and drugs, on both indexed (mL/min/1.73 m²) and non-indexed (absolute mL/min) GFR scales.\n\nDosing Heatmaps →\n\n\n\nCockcroft-Gault · CKD-EPI Cr (2021) · CKD-EPI Cys · CKD-EPI Cr-Cys (2021) · EKFC Cr · EKFC Cys · EKFC Cr-Cys · CKD-EPI 4-marker\n\n\n\nCarboplatin (Calvert, ±15 % and ±20 % margins) · Cisplatin · Methotrexate · Melphalan"
-  },
-  {
-    "objectID": "index.html#overview",
-    "href": "index.html#overview",
-    "title": "OncoGFR 1200 — Chemotherapy Dosing by eGFR Equation",
-    "section": "",
-    "text": "A sub-analysis of the dose project using the OncoGFR 1200 cohort, which uniquely includes a measured GFR (mGFR, ⁵¹Cr-EDTA plasma clearance) as the gold standard.\nThe analysis asks: if chemotherapy were dosed from each estimated-GFR (eGFR) equation instead of measured GFR, how often would patients be over- or under-dosed? Results are presented as heatmaps across equations and drugs, on both indexed (mL/min/1.73 m²) and non-indexed (absolute mL/min) GFR scales.\n\nDosing Heatmaps →\n\n\n\nCockcroft-Gault · CKD-EPI Cr (2021) · CKD-EPI Cys · CKD-EPI Cr-Cys (2021) · EKFC Cr · EKFC Cys · EKFC Cr-Cys · CKD-EPI 4-marker\n\n\n\nCarboplatin (Calvert, ±15 % and ±20 % margins) · Cisplatin · Methotrexate · Melphalan"
-  },
-  {
     "objectID": "qmd/dosing_heatmap.html",
     "href": "qmd/dosing_heatmap.html",
     "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
     "section": "",
     "text": "Code\n# Force UTF-8 so unicode (mL/min/1.73m², ±, ≥) renders correctly.\ninvisible(Sys.setlocale(\"LC_ALL\", \"en_US.UTF-8\"))\n\n# Lightweight install guard so the project renders on a fresh machine.\n.need &lt;- c(\"readxl\",\"dplyr\",\"tidyr\",\"purrr\",\"tibble\",\"flextable\",\"officer\",\"ggplot2\")\n.miss &lt;- setdiff(.need, rownames(installed.packages()))\nif (length(.miss)) install.packages(.miss, repos = \"https://cloud.r-project.org\")\n\nlibrary(readxl)\nlibrary(dplyr)\nlibrary(tidyr)\nlibrary(purrr)\nlibrary(tibble)\nlibrary(flextable)\nlibrary(ggplot2)\n\n# Output directory for downloadable Word copies of every table.\ndocx_dir &lt;- \"docs/tables/heatmap\"\ndir.create(docx_dir, recursive = TRUE, showWarnings = FALSE)\n# Absolute path: flextable_to_rmd() can change the working directory mid-render,\n# which would break later saves to a relative docx_dir.\ndocx_dir &lt;- normalizePath(docx_dir, mustWork = TRUE)\n\nsave_ft_docx &lt;- function(ft, name) {\n  flextable::save_as_docx(ft, path = file.path(docx_dir, paste0(name, \".docx\")))\n  invisible(ft)\n}\n\n# --- Two colouring schemes -------------------------------------------------\n# V1: 4-level categorical severity.  &lt;5 yellow · 5–10 orange · 10–20 red · &gt;20 purple.\ncat4_fill &lt;- function(x) {\n  dplyr::case_when(is.na(x) ~ \"#FFFFFF\",\n                   x &lt;  5  ~ \"#FFEDA0\",   # yellow\n                   x &lt; 10  ~ \"#FEB24C\",   # orange\n                   x &lt;= 20 ~ \"#F03B20\",   # red\n                   TRUE    ~ \"#6A51A3\")   # purple\n}\n\n# V2: continuous gradient across `stops` (low 0 % -&gt; high), saturating at `dom` %.\n# (base grDevices, no extra dependency). The exact % is printed in every cell.\nramp_fill &lt;- function(x, stops, dom = 30) {\n  f   &lt;- grDevices::colorRamp(stops)\n  x2  &lt;- pmin(pmax(x, 0), dom) / dom\n  out &lt;- rep(\"#FFFFFF\", length(x))      # NA -&gt; white (no data)\n  ok  &lt;- !is.na(x2)\n  if (any(ok)) {\n    m &lt;- f(x2[ok])\n    out[ok] &lt;- grDevices::rgb(m[, 1], m[, 2], m[, 3], maxColorValue = 255)\n  }\n  out\n}\n# Yellow -&gt; orange -&gt; red ramp for Part B (low % = yellow, high % = deep red).\nCONT_STOPS &lt;- c(\"#FFEDA0\", \"#FEB24C\", \"#F03B20\", \"#B2182B\")"
-  },
-  {
-    "objectID": "qmd/dosing_heatmap.html#indexed-gfr-mlmin1.73-m²-2",
-    "href": "qmd/dosing_heatmap.html#indexed-gfr-mlmin1.73-m²-2",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "Indexed GFR (mL/min/1.73 m²)",
-    "text": "Indexed GFR (mL/min/1.73 m²)\n\nOverdose\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose"
-  },
-  {
-    "objectID": "qmd/dosing_heatmap.html#non-indexed-gfr-absolute-mlmin-2",
-    "href": "qmd/dosing_heatmap.html#non-indexed-gfr-absolute-mlmin-2",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "Non-indexed GFR (absolute mL/min)",
-    "text": "Non-indexed GFR (absolute mL/min)\n\nOverdose\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose"
   },
   {
     "objectID": "qmd/dosing_heatmap.html#part-a-categorical-colour-4-levels-1",
@@ -117,20 +19,6 @@
     "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
     "section": "Part B — Continuous colour (yellow → red)",
     "text": "Part B — Continuous colour (yellow → red)\n\nCode\nemit_mcg(mcg_index, \"cont\", \"index\", \"Indexed GFR (mL/min/1.73 m²)\")\n\n\nIndexed GFR (mL/min/1.73 m²)\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseAge (years)DrugOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastatic&lt;70≥70Carboplatin (±20%)7.011.42.86.67.37.66.17.63.47.93.9Carboplatin (±15%)11.318.04.913.112.711.69.611.88.412.56.9Cisplatin6.27.05.41.68.06.74.75.88.44.711.6Methotrexate5.86.35.41.67.36.74.15.67.34.311.6Melphalan4.55.13.90.06.34.83.34.45.13.96.6\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseAge (years)DrugOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastatic&lt;70≥70Carboplatin (±20%)3.32.54.10.02.33.64.43.42.83.23.9Carboplatin (±15%)7.65.110.03.38.08.27.27.86.26.412.0Cisplatin9.26.811.611.511.39.07.48.612.95.223.9Methotrexate7.86.19.59.88.78.06.67.78.44.719.3Melphalan6.34.68.06.65.36.76.66.46.24.114.3\n\n\n📄 Overdose Word · 📄 Underdose Word\n\nCode\nemit_mcg(mcg_nonindex, \"cont\", \"nonindex\", \"Non-indexed GFR (absolute mL/min)\")\n\n\n\nNon-indexed GFR (absolute mL/min)\n\n\nOVERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseAge (years)DrugOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastatic&lt;70≥70Carboplatin (±20%)6.911.22.86.67.37.46.17.53.47.93.5Carboplatin (±15%)11.418.24.913.112.012.09.912.07.912.86.6Cisplatin6.17.64.66.67.77.43.06.25.64.512.0Methotrexate5.77.14.39.87.76.12.85.47.34.510.0Melphalan4.46.12.84.96.74.62.24.44.54.15.4\n\n\n\n\nUNDERDOSE (%)SexBMI category (kg/m²)Metastatic diseaseAge (years)DrugOverallFemaleMale&lt;2020 to &lt;2525 to &lt;30&gt;=30Not metastaticMetastatic&lt;70≥70Carboplatin (±20%)3.62.54.60.02.33.65.23.72.83.44.2Carboplatin (±15%)7.74.810.51.68.08.47.47.96.26.611.6Cisplatin8.26.110.311.512.78.04.47.512.44.820.8Methotrexate7.86.19.313.110.37.15.57.49.64.420.1Melphalan5.74.66.78.27.35.54.15.85.13.712.7\n\n\n📄 Overdose Word · 📄 Underdose Word"
-  },
-  {
-    "objectID": "qmd/dosing_heatmap.html#indexed-gfr-mlmin1.73-m²-4",
-    "href": "qmd/dosing_heatmap.html#indexed-gfr-mlmin1.73-m²-4",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "Indexed GFR (mL/min/1.73 m²)",
-    "text": "Indexed GFR (mL/min/1.73 m²)\n\nOverdose\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose"
-  },
-  {
-    "objectID": "qmd/dosing_heatmap.html#non-indexed-gfr-absolute-mlmin-4",
-    "href": "qmd/dosing_heatmap.html#non-indexed-gfr-absolute-mlmin-4",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "Non-indexed GFR (absolute mL/min)",
-    "text": "Non-indexed GFR (absolute mL/min)\n\nOverdose\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose"
   },
   {
     "objectID": "qmd/dosing_heatmap.html#part-a-categorical-colour-4-levels-2",
@@ -196,13 +84,6 @@
     "text": "Muscle Z-score (LOESS, 465 body-composition cohort)\nY = % over- (or under-) dosed; x = muscle Z-score (SMI). Mechanistically, lower muscle Z (less muscle) lowers serum creatinine, so creatinine-based equations can read GFR falsely high → overdose; cystatin-based equations are muscle-independent. The curves show how this plays out across the muscle spectrum (CIs widen at the sparse extremes). N = 465; indexed GFR.\n\nOverdose\n\n\nCode\nfor (eq in LOESS_EQS) print(loess_plot(cl_index_465, eq, \"Overdose\", \"muscle_z\", MZ_XLAB, MZ_XLIM))\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose\n\n\nCode\nfor (eq in LOESS_EQS) print(loess_plot(cl_index_465, eq, \"Underdose\", \"muscle_z\", MZ_XLAB, MZ_XLIM))"
   },
   {
-    "objectID": "qmd/dosing_heatmap.html#ecog-performance-status-whole-1200-cohort",
-    "href": "qmd/dosing_heatmap.html#ecog-performance-status-whole-1200-cohort",
-    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
-    "section": "ECOG performance status (whole 1,200 cohort)",
-    "text": "ECOG performance status (whole 1,200 cohort)\nY = % over- (or under-) dosed; x = ECOG group. ECOG 2 and 3 are lumped as ≥2 (only 8 patients are ECOG 3); the N for each group (0 = 745 · 1 = 384 · ≥2 = 71) is printed under the x-axis. One line per drug, per equation.\n\nOverdose\n\n\nCode\nfor (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, \"Overdose\"))\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose\n\n\nCode\nfor (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, \"Underdose\"))"
-  },
-  {
     "objectID": "qmd/dosing_heatmap.html#derived-dose-variables",
     "href": "qmd/dosing_heatmap.html#derived-dose-variables",
     "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
@@ -210,10 +91,45 @@
     "text": "Derived dose variables\nPer-patient binary flags (1 = yes, 0 = no), computed for each equation on the indexed scale vs measured GFR (whole 1,200 cohort):\n\n\n\n\n\n\n\nVariable\nDefinition (per equation, vs mGFR)\n\n\n\n\ncisplatin_eligible\nequation GFR ≥ 40 → cisplatin-eligible (not “avoid”)\n\n\ncarbo15_over\nCalvert dose &gt; 15 % above the mGFR AUC-5 dose\n\n\ncarbo15_under\nCalvert dose &gt; 15 % below the mGFR AUC-5 dose\n\n\ncarbo20_over\nCalvert dose &gt; 20 % above the mGFR AUC-5 dose\n\n\ncarbo20_under\nCalvert dose &gt; 20 % below the mGFR AUC-5 dose\n\n\n\nThe code that creates them (click ▸ Code to expand):\n\n\nCode\ndose_vars &lt;- purrr::map_dfr(reg$equation, function(eq) {\n  g &lt;- dat[[reg$index_col[reg$equation == eq]]]   # this equation's indexed GFR\n  m &lt;- dat$mGFRindex                              # measured GFR (indexed)\n  tibble::tibble(\n    equation = eq, ecog_grp = dat$ecog_grp,\n    cisplatin_eligible = as.integer(dose_tier(g, \"cisplatin\") &gt; 0),\n    carbo15_over  = as.integer(carbo_class(g, m, 5.75, 4.25) == \"Overdose\"),\n    carbo15_under = as.integer(carbo_class(g, m, 5.75, 4.25) == \"Underdose\"),\n    carbo20_over  = as.integer(carbo_class(g, m, 6, 4)       == \"Overdose\"),\n    carbo20_under = as.integer(carbo_class(g, m, 6, 4)       == \"Underdose\"))\n}) %&gt;% dplyr::left_join(dplyr::select(reg, equation, type, label), by = \"equation\")\n\n\nOverall rate (% yes) of each flag, by equation:\n\n\nCode\ndose_vars %&gt;%\n  dplyr::transmute(Equation = paste(type, \"·\", label),\n                   cisplatin_eligible, carbo15_over, carbo15_under, carbo20_over, carbo20_under) %&gt;%\n  dplyr::group_by(Equation) %&gt;%\n  dplyr::summarise(dplyr::across(dplyr::everything(), ~ round(mean(.x) * 100, 1)), .groups = \"drop\") %&gt;%\n  knitr::kable(col.names = c(\"Equation\", \"Cispl. eligible %\", \"Carbo15 over %\",\n                             \"Carbo15 under %\", \"Carbo20 over %\", \"Carbo20 under %\"))\n\n\n\n\n\n\n\n\n\n\n\n\n\nEquation\nCispl. eligible %\nCarbo15 over %\nCarbo15 under %\nCarbo20 over %\nCarbo20 under %\n\n\n\n\nClCr · Cockcroft-Gault\n96.1\n35.5\n4.8\n27.4\n1.8\n\n\nPanel · CKD-EPI 4-marker\n96.4\n12.8\n4.5\n6.6\n1.5\n\n\neGFRcr · CKD-EPI 2021\n97.2\n35.3\n2.3\n24.3\n1.4\n\n\neGFRcr · EKFC 2021\n96.0\n15.7\n7.2\n9.4\n2.8\n\n\neGFRcr-cys · CKD-EPI 2021\n96.0\n19.5\n3.9\n11.8\n1.5\n\n\neGFRcr-cys · EKFC 2023\n95.8\n8.8\n8.2\n5.0\n2.7\n\n\neGFRcys · CKD-EPI 2012\n91.7\n10.7\n20.7\n5.8\n9.5\n\n\neGFRcys · EKFC 2023\n94.1\n8.1\n17.1\n4.5\n8.4"
   },
   {
+    "objectID": "qmd/dosing_heatmap.html#ecog-performance-status-whole-1200-cohort",
+    "href": "qmd/dosing_heatmap.html#ecog-performance-status-whole-1200-cohort",
+    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
+    "section": "ECOG performance status (whole 1,200 cohort)",
+    "text": "ECOG performance status (whole 1,200 cohort)\nY = % over- (or under-) dosed; x = ECOG group. ECOG 2 and 3 are lumped as ≥2 (only 8 patients are ECOG 3); the N for each group (0 = 745 · 1 = 384 · ≥2 = 71) is printed under the x-axis. One line per drug, per equation.\n\nOverdose\n\n\nCode\nfor (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, \"Overdose\", ymax = 50))\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose\n\n\nCode\nfor (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, \"Underdose\", ymax = 50))"
+  },
+  {
     "objectID": "qmd/dosing_heatmap.html#fried-frailty-classification-592-patients-with-a-fried-class",
     "href": "qmd/dosing_heatmap.html#fried-frailty-classification-592-patients-with-a-fried-class",
     "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
     "section": "Fried frailty classification (592 patients with a Fried class)",
-    "text": "Fried frailty classification (592 patients with a Fried class)\nSame bar plots as ECOG but x = Fried frailty class (from Frailty data to MGH.xlsx, joined on protocol), limited to the 592 patients who have a Fried classification. N per group is under the x-axis; the 5 drug bars are sorted low→high within each class. Classes shown as 0 / 1 / 2 (likely robust / pre-frail / frail — confirm the mapping).\n\nOverdose\n\n\nCode\nfor (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, \"Overdose\", \"fried_grp\", \"Fried frailty class (0/1/2)\"))\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose\n\n\nCode\nfor (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, \"Underdose\", \"fried_grp\", \"Fried frailty class (0/1/2)\"))"
+    "text": "Fried frailty classification (592 patients with a Fried class)\nSame bar plots as ECOG but x = Fried frailty class (from Frailty data to MGH.xlsx, joined on protocol), limited to the 592 patients who have a Fried classification. N per group is under the x-axis; the 5 drug bars are sorted low→high within each class. Classes shown as 0 / 1 / 2 (likely robust / pre-frail / frail — confirm the mapping).\n\nOverdose\n\n\nCode\nfor (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, \"Overdose\", \"fried_grp\", \"Fried frailty class (0/1/2)\", ymax = 50))\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose\n\n\nCode\nfor (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, \"Underdose\", \"fried_grp\", \"Fried frailty class (0/1/2)\", ymax = 50))"
+  },
+  {
+    "objectID": "qmd/dosing_heatmap.html#cachexia-689-patients-with-nutrition-data",
+    "href": "qmd/dosing_heatmap.html#cachexia-689-patients-with-nutrition-data",
+    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
+    "section": "Cachexia (689 patients with nutrition data)",
+    "text": "Cachexia (689 patients with nutrition data)\nSame bar plots as ECOG but x = Cachexia (from Nutrition data.xlsx, joined on protocol), limited to the 689 patients who have nutrition data. Cachexia is coded No / Yes (No = 463 · Yes = 226); the N for each group is printed under the x-axis and the 5 drug bars are sorted low→high within each group. Y-axis fixed at 0–50 to match the other panels.\n\nOverdose\n\n\nCode\nfor (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, \"Overdose\", \"cachexia_grp\", \"Cachexia\", ymax = 50))\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose\n\n\nCode\nfor (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, \"Underdose\", \"cachexia_grp\", \"Cachexia\", ymax = 50))"
+  },
+  {
+    "objectID": "qmd/dosing_heatmap.html#asg-ppp-pg-sga-689-patients-with-nutrition-data",
+    "href": "qmd/dosing_heatmap.html#asg-ppp-pg-sga-689-patients-with-nutrition-data",
+    "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
+    "section": "ASG-PPP (PG-SGA) (689 patients with nutrition data)",
+    "text": "ASG-PPP (PG-SGA) (689 patients with nutrition data)\nSame bar plots but x = ASG-PPP (Patient-Generated Subjective Global Assessment; from Nutrition data.xlsx, joined on protocol), limited to the 689 patients with nutrition data. Coded 1 / 2 (1 = 387 · 2 = 302 — confirm which level is well-nourished vs malnourished). N per group is under the x-axis; the 5 drug bars are sorted low→high. Y-axis fixed at 0–50.\n\nOverdose\n\n\nCode\nfor (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, \"Overdose\", \"asgppp_grp\", \"ASG-PPP (PG-SGA)\", ymax = 50))\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nUnderdose\n\n\nCode\nfor (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, \"Underdose\", \"asgppp_grp\", \"ASG-PPP (PG-SGA)\", ymax = 50))"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "OncoGFR 1200 — Chemotherapy Dosing by eGFR Equation",
+    "section": "",
+    "text": "A sub-analysis of the dose project using the OncoGFR 1200 cohort, which uniquely includes a measured GFR (mGFR, ⁵¹Cr-EDTA plasma clearance) as the gold standard.\nThe analysis asks: if chemotherapy were dosed from each estimated-GFR (eGFR) equation instead of measured GFR, how often would patients be over- or under-dosed? Results are presented as heatmaps across equations and drugs, on both indexed (mL/min/1.73 m²) and non-indexed (absolute mL/min) GFR scales.\n\nDosing Heatmaps →\n\n\n\nCockcroft-Gault · CKD-EPI Cr (2021) · CKD-EPI Cys · CKD-EPI Cr-Cys (2021) · EKFC Cr · EKFC Cys · EKFC Cr-Cys · CKD-EPI 4-marker\n\n\n\nCarboplatin (Calvert, ±15 % and ±20 % margins) · Cisplatin · Methotrexate · Melphalan"
+  },
+  {
+    "objectID": "index.html#overview",
+    "href": "index.html#overview",
+    "title": "OncoGFR 1200 — Chemotherapy Dosing by eGFR Equation",
+    "section": "",
+    "text": "A sub-analysis of the dose project using the OncoGFR 1200 cohort, which uniquely includes a measured GFR (mGFR, ⁵¹Cr-EDTA plasma clearance) as the gold standard.\nThe analysis asks: if chemotherapy were dosed from each estimated-GFR (eGFR) equation instead of measured GFR, how often would patients be over- or under-dosed? Results are presented as heatmaps across equations and drugs, on both indexed (mL/min/1.73 m²) and non-indexed (absolute mL/min) GFR scales.\n\nDosing Heatmaps →\n\n\n\nCockcroft-Gault · CKD-EPI Cr (2021) · CKD-EPI Cys · CKD-EPI Cr-Cys (2021) · EKFC Cr · EKFC Cys · EKFC Cr-Cys · CKD-EPI 4-marker\n\n\n\nCarboplatin (Calvert, ±15 % and ±20 % margins) · Cisplatin · Methotrexate · Melphalan"
   }
 ]
