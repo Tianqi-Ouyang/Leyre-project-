@@ -100,8 +100,8 @@ dat <- raw %>%
     # (mL/min/1.73 m²). Both use the index columns.
     egfr_ratio = CKDEPIcysindex / CKDEPIcr21index,
     egfr_diff  = CKDEPIcysindex - CKDEPIcr21index,
-    # % difference of the two eGFRs relative to creatinine; scale-invariant.
-    egfr_pctdiff = (CKDEPIcr21index - CKDEPIcysindex) / CKDEPIcr21index * 100
+    # % difference (Cys − Cr) relative to creatinine; scale-invariant.
+    egfr_pctdiff = (CKDEPIcysindex - CKDEPIcr21index) / CKDEPIcr21index * 100
   )
 
 # Body-composition subset (465 patients, matched on `protocol`). Adds a Prado
@@ -344,9 +344,9 @@ loess_plot <- function(cl, eq, direction, xvar = "egfr_ratio",
 # X-axis for the difference LOESS set (indexed Cys − Cr, mL/min/1.73 m²).
 DIFF_XLAB <- "eGFR difference  (CKD-EPI Cys 2012 − Cr 2021, mL/min/1.73 m²)"
 DIFF_XLIM <- c(-50, 20)
-# X-axis for the % difference LOESS set ((Cr − Cys)/Cr × 100; scale-invariant).
-PCTD_XLAB <- "eGFR % difference  [(CKD-EPI Cr 2021 − Cys 2012) / Cr 2021, %]"
-PCTD_XLIM <- c(-20, 50)
+# X-axis for the % difference LOESS set ((Cys − Cr)/Cr × 100; scale-invariant).
+PCTD_XLAB <- "eGFR % difference  [(CKD-EPI Cys 2012 − Cr 2021) / Cr 2021, %]"
+PCTD_XLIM <- c(-50, 20)
 # X-axis for the muscle Z-score LOESS (465 body-comp cohort).
 MZ_XLAB <- "Muscle Z-score (SMI)"
 MZ_XLIM <- c(-3, 2)
@@ -841,13 +841,13 @@ for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Underdose", "egfr_diff"
 
 # LOESS (% difference) — over/under-dose probability vs eGFR % difference
 
-Third LOESS set: the x-axis is the **% difference = (eGFR_Cr − eGFR_Cys) ⁄ eGFR_Cr × 100**
-(CKD-EPI Cr 2021 vs Cys 2012). It is a ratio of two eGFRs, so it is **scale-invariant**. **Positive**
-= creatinine-eGFR above cystatin-eGFR (creatinine reads function higher). All **8 equations**, 5
+Third LOESS set: the x-axis is the **% difference = (eGFR_Cys − eGFR_Cr) ⁄ eGFR_Cr × 100**
+(CKD-EPI Cys 2012 vs Cr 2021). It is a ratio of two eGFRs, so it is **scale-invariant**. **Positive**
+= cystatin-eGFR above creatinine-eGFR (cystatin reads function higher). All **8 equations**, 5
 drugs overlaid, index/non-index × over/under (**32 plots total**; the CKD-EPI Cys 2012 and Cr 2021
-panels are partly self-referential). Because a higher % difference means creatinine reads GFR
-higher, **creatinine-equation overdose curves rise** as the % difference increases while
-cystatin-equation curves fall — the mirror of the ratio version.
+panels are partly self-referential). Because a higher % difference now means cystatin reads GFR
+higher, **creatinine-equation overdose curves fall** as the % difference increases while
+cystatin-equation curves rise — now matching the ratio version.
 
 ## Indexed GFR (mL/min/1.73 m²)
 
