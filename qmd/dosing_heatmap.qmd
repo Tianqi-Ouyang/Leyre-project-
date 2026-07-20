@@ -22,9 +22,15 @@ format:
 invisible(Sys.setlocale("LC_ALL", "en_US.UTF-8"))
 
 # Lightweight install guard so the project renders on a fresh machine.
-.need <- c("readxl","dplyr","tidyr","purrr","tibble","flextable","officer","ggplot2")
+.need <- c("readxl","dplyr","tidyr","purrr","tibble","flextable","officer","ggplot2","rvg")
 .miss <- setdiff(.need, rownames(installed.packages()))
 if (length(.miss)) install.packages(.miss, repos = "https://cloud.r-project.org")
+# bodycompref is GitHub-only (p-mq/bodycompref); supplies the muscle Z-score.
+if (!requireNamespace("bodycompref", quietly = TRUE)) {
+  if (!requireNamespace("remotes", quietly = TRUE))
+    install.packages("remotes", repos = "https://cloud.r-project.org")
+  remotes::install_github("p-mq/bodycompref")
+}
 
 library(readxl)
 library(dplyr)
@@ -44,6 +50,29 @@ docx_dir <- normalizePath(docx_dir, mustWork = TRUE)
 save_ft_docx <- function(ft, name) {
   flextable::save_as_docx(ft, path = file.path(docx_dir, paste0(name, ".docx")))
   invisible(ft)
+}
+
+# Output directory for downloadable PowerPoint copies of the plot panels.
+ppt_dir <- "docs/ppt"
+dir.create(ppt_dir, recursive = TRUE, showWarnings = FALSE)
+# Absolute path for the same reason as docx_dir (cwd can change mid-render).
+ppt_dir <- normalizePath(ppt_dir, mustWork = TRUE)
+
+# Render a list of ggplots inline AND write them to an editable .pptx (one slide
+# per plot) under docs/ppt/, then print a Markdown download link. Must be called
+# inside a `results: asis` chunk. Editable vector via rvg::dml; raster fallback.
+emit_plots <- function(plots, fname,
+                       label = "⬇️ Download these panels as PowerPoint (editable)") {
+  for (p in plots) print(p)                                   # figures, inline
+  loc <- officer::ph_location(left = 0.5, top = 1.2, width = 9, height = 5.14)  # 7:4
+  doc <- officer::read_pptx()
+  for (p in plots) {
+    doc <- officer::add_slide(doc, layout = "Title and Content", master = "Office Theme")
+    gr  <- tryCatch(rvg::dml(ggobj = p), error = function(e) NULL)
+    doc <- officer::ph_with(doc, if (is.null(gr)) p else gr, location = loc)
+  }
+  print(doc, target = file.path(ppt_dir, paste0(fname, ".pptx")))
+  cat(sprintf("\n\n[%s](../ppt/%s.pptx)\n\n", label, fname))
 }
 
 # --- Two colouring schemes -------------------------------------------------
@@ -107,11 +136,25 @@ dat <- raw %>%
 # Body-composition subset (465 patients, matched on `protocol`). Adds a Prado
 # sarcopenia group and an in_bodycomp flag; NA for the other 735 patients.
 .bc <- suppressWarnings(readxl::read_excel("Data/OncoGFR_MGH_final_0428.xlsx"))
+
+# Muscle Z-score is RECOMPUTED here with the bodycompref package (L3 skeletal
+# muscle index vs the Framingham reference; Tonnesen 2023) rather than reusing the
+# file's stored `z_score`, which came from an older build whose age floor was 35.
+# The current reference window is 38-80, so age is clamped into it (<38 -> 38,
+# >80 -> 80). The cohort spans 19-86 y, so 58 of 465 sit outside that window and
+# are anchored to a boundary age -- flagged in the Muscle Z-score section.
+.bc_age <- pmin(pmax(as.integer(round(as.numeric(.bc$age))), 38L), 80L)
+.bc_ok  <- !is.na(.bc_age) & !is.na(.bc$SMI) & .bc$sex %in% c("Female", "Male")
+.bc$muscle_z_ref <- NA_real_
+.bc$muscle_z_ref[.bc_ok] <- bodycompref::reference_z_scores(
+  rep("SMI", sum(.bc_ok)), as.character(.bc$sex)[.bc_ok], rep("L3", sum(.bc_ok)),
+  .bc_age[.bc_ok], as.numeric(.bc$SMI)[.bc_ok])
+
 dat <- dat %>% dplyr::mutate(
   in_bodycomp = protocol %in% .bc$protocol,
   sarc_grp = factor(.bc$sarcopenia_prado[match(protocol, .bc$protocol)],
                     levels = c(0, 1), labels = c("Non-sarcopenic", "Sarcopenic")),
-  muscle_z = .bc$z_score[match(protocol, .bc$protocol)]   # muscle (SMI) Z-score
+  muscle_z = .bc$muscle_z_ref[match(protocol, .bc$protocol)]  # bodycompref L3 SMI Z
 )
 
 # Fried frailty class (separate file; key is misspelled 'protocal'); 592 of 1200 have it.
@@ -183,6 +226,7 @@ build_class_long <- function(scale = c("index", "nonindex"), data = dat) {
   base <- dplyr::select(data, sex, bmi_grp, met_grp, age_grp, ecog_grp, fried_grp,
                         egfr_ratio, egfr_diff, egfr_pctdiff, sarc_grp, muscle_z,
                         cachexia_grp, asgppp_grp)
+  base$mgfr_x <- mgfr   # scale-appropriate measured GFR, for the mGFR-on-x LOESS set
   tier <- purrr::map_dfr(reg$equation, function(eq) {
     g <- data[[col_of(eq)]]
     purrr::map_dfr(TIER_DRUGS, function(dr)
@@ -347,6 +391,11 @@ DIFF_XLIM <- c(-50, 20)
 # X-axis for the % difference LOESS set ((Cys − Cr)/Cr × 100; scale-invariant).
 PCTD_XLAB <- "eGFR % difference  [(CKD-EPI Cys 2012 − Cr 2021) / Cr 2021, %]"
 PCTD_XLIM <- c(-50, 20)
+# X-axis for the measured-GFR LOESS set (the reference itself; indexed vs absolute).
+MGFR_XLAB_IDX <- "Measured GFR  (⁵¹Cr-EDTA, mL/min/1.73 m²)"
+MGFR_XLIM_IDX <- c(15, 145)
+MGFR_XLAB_NIX <- "Measured GFR  (⁵¹Cr-EDTA, absolute mL/min)"
+MGFR_XLIM_NIX <- c(15, 185)
 # X-axis for the muscle Z-score LOESS (465 body-comp cohort).
 MZ_XLAB <- "Muscle Z-score (SMI)"
 MZ_XLIM <- c(-3, 2)
@@ -754,18 +803,20 @@ cystatin-equation curves *rise* — exactly what makes this eGFR ratio a useful 
 
 ```{r}
 #| label: loess-idx-over
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_index, eq, "Overdose"))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, "Overdose")), "loess-idx-over")
 ```
 
 ### Underdose
 
 ```{r}
 #| label: loess-idx-under
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_index, eq, "Underdose"))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, "Underdose")), "loess-idx-under")
 ```
 
 ## Non-indexed GFR (absolute mL/min)
@@ -774,18 +825,20 @@ for (eq in LOESS_EQS) print(loess_plot(cl_index, eq, "Underdose"))
 
 ```{r}
 #| label: loess-nix-over
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Overdose"))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Overdose")), "loess-nix-over")
 ```
 
 ### Underdose
 
 ```{r}
 #| label: loess-nix-under
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Underdose"))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Underdose")), "loess-nix-under")
 ```
 
 
@@ -804,18 +857,20 @@ difference rises while cystatin-equation curves *rise*.
 
 ```{r}
 #| label: loessd-idx-over
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_index, eq, "Overdose", "egfr_diff", DIFF_XLAB, DIFF_XLIM))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, "Overdose", "egfr_diff", DIFF_XLAB, DIFF_XLIM)), "loessd-idx-over")
 ```
 
 ### Underdose
 
 ```{r}
 #| label: loessd-idx-under
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_index, eq, "Underdose", "egfr_diff", DIFF_XLAB, DIFF_XLIM))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, "Underdose", "egfr_diff", DIFF_XLAB, DIFF_XLIM)), "loessd-idx-under")
 ```
 
 ## Non-indexed GFR (absolute mL/min)
@@ -824,18 +879,20 @@ for (eq in LOESS_EQS) print(loess_plot(cl_index, eq, "Underdose", "egfr_diff", D
 
 ```{r}
 #| label: loessd-nix-over
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Overdose", "egfr_diff", DIFF_XLAB, DIFF_XLIM))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Overdose", "egfr_diff", DIFF_XLAB, DIFF_XLIM)), "loessd-nix-over")
 ```
 
 ### Underdose
 
 ```{r}
 #| label: loessd-nix-under
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Underdose", "egfr_diff", DIFF_XLAB, DIFF_XLIM))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Underdose", "egfr_diff", DIFF_XLAB, DIFF_XLIM)), "loessd-nix-under")
 ```
 
 
@@ -855,18 +912,20 @@ cystatin-equation curves rise — now matching the ratio version.
 
 ```{r}
 #| label: loessp-idx-over
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_index, eq, "Overdose", "egfr_pctdiff", PCTD_XLAB, PCTD_XLIM))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, "Overdose", "egfr_pctdiff", PCTD_XLAB, PCTD_XLIM)), "loessp-idx-over")
 ```
 
 ### Underdose
 
 ```{r}
 #| label: loessp-idx-under
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_index, eq, "Underdose", "egfr_pctdiff", PCTD_XLAB, PCTD_XLIM))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, "Underdose", "egfr_pctdiff", PCTD_XLAB, PCTD_XLIM)), "loessp-idx-under")
 ```
 
 ## Non-indexed GFR (absolute mL/min)
@@ -875,18 +934,76 @@ for (eq in LOESS_EQS) print(loess_plot(cl_index, eq, "Underdose", "egfr_pctdiff"
 
 ```{r}
 #| label: loessp-nix-over
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Overdose", "egfr_pctdiff", PCTD_XLAB, PCTD_XLIM))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Overdose", "egfr_pctdiff", PCTD_XLAB, PCTD_XLIM)), "loessp-nix-over")
 ```
 
 ### Underdose
 
 ```{r}
 #| label: loessp-nix-under
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_nonindex, eq, "Underdose", "egfr_pctdiff", PCTD_XLAB, PCTD_XLIM))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Underdose", "egfr_pctdiff", PCTD_XLAB, PCTD_XLIM)), "loessp-nix-under")
+```
+
+
+# LOESS (measured GFR) — over/under-dose probability vs measured GFR
+
+Fourth LOESS set: the x-axis is the **reference itself — measured GFR (⁵¹Cr-EDTA)** — rather than a
+Cr‑vs‑Cys discordance. It asks a different question: **at what true GFR levels does each equation
+misdose?** All **8 equations**, 5 drugs overlaid, index/non-index × over/under (**32 plots total**).
+Because over/under-dose is defined by crossing a dosing threshold vs mGFR, the curves peak **near each
+drug's GFR cutoffs** (cisplatin 60/50/40; methotrexate 60/45/30; melphalan 60/30; carboplatin is
+continuous via Calvert) and fall toward 0 far from them. Every panel here is "self-referential" (mGFR
+defines the outcome), so read them as *where along the true-GFR range* the misdosing sits, not as a
+biomarker-discrimination curve. Indexed vs non-indexed use `mGFRindex` / `mGFRnon_index`.
+
+## Indexed GFR (mL/min/1.73 m²)
+
+### Overdose
+
+```{r}
+#| label: mgfr-idx-over
+#| results: asis
+#| fig-width: 7
+#| fig-height: 4
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, "Overdose", "mgfr_x", MGFR_XLAB_IDX, MGFR_XLIM_IDX)), "mgfr-idx-over")
+```
+
+### Underdose
+
+```{r}
+#| label: mgfr-idx-under
+#| results: asis
+#| fig-width: 7
+#| fig-height: 4
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, "Underdose", "mgfr_x", MGFR_XLAB_IDX, MGFR_XLIM_IDX)), "mgfr-idx-under")
+```
+
+## Non-indexed GFR (absolute mL/min)
+
+### Overdose
+
+```{r}
+#| label: mgfr-nix-over
+#| results: asis
+#| fig-width: 7
+#| fig-height: 4
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Overdose", "mgfr_x", MGFR_XLAB_NIX, MGFR_XLIM_NIX)), "mgfr-nix-over")
+```
+
+### Underdose
+
+```{r}
+#| label: mgfr-nix-under
+#| results: asis
+#| fig-width: 7
+#| fig-height: 4
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Underdose", "mgfr_x", MGFR_XLAB_NIX, MGFR_XLIM_NIX)), "mgfr-nix-under")
 ```
 
 
@@ -902,22 +1019,33 @@ muscle) lowers serum creatinine, so **creatinine-based** equations can read GFR 
 overdose; cystatin-based equations are muscle-independent. The curves show how this plays out across
 the muscle spectrum (CIs widen at the sparse extremes). N = 465; indexed GFR.
 
+**Z-score provenance.** The Z is computed in this document with the
+[`bodycompref`](https://github.com/p-mq/bodycompref) package (v2.0.1) —
+`reference_z_scores(metric = "SMI", level = "L3", …)`, a GAMLSS **LMSP** model fit to **Framingham
+Heart Study** CT data (Tonnesen et al., *Invest Radiol* 2023) — rather than the stored `z_score`
+column, which came from an older build with an age floor of **35**. ⚠️ **Reference window is age
+38–80**, but this cohort spans **19–86**, so **58 / 465 (12.5 %)** patients (46 younger than 38, 12
+older than 80) are clamped to a boundary age and their Z is anchored to an age they are not — read
+the extremes of the muscle spectrum with that in mind.
+
 ### Overdose
 
 ```{r}
 #| label: mz-over
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_index_465, eq, "Overdose", "muscle_z", MZ_XLAB, MZ_XLIM))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index_465, eq, "Overdose", "muscle_z", MZ_XLAB, MZ_XLIM)), "mz-over")
 ```
 
 ### Underdose
 
 ```{r}
 #| label: mz-under
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(loess_plot(cl_index_465, eq, "Underdose", "muscle_z", MZ_XLAB, MZ_XLIM))
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index_465, eq, "Underdose", "muscle_z", MZ_XLAB, MZ_XLIM)), "mz-under")
 ```
 
 ## Derived dose variables
@@ -974,18 +1102,20 @@ line per drug, per equation.
 
 ```{r}
 #| label: ecog-over
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose", ymax = 50))
+emit_plots(lapply(LOESS_EQS, function(eq) ecog_plot(cl_index, eq, "Overdose", ymax = 50)), "ecog-over")
 ```
 
 ### Underdose
 
 ```{r}
 #| label: ecog-under
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose", ymax = 50))
+emit_plots(lapply(LOESS_EQS, function(eq) ecog_plot(cl_index, eq, "Underdose", ymax = 50)), "ecog-under")
 ```
 
 
@@ -1000,18 +1130,20 @@ the x-axis; the 5 drug bars are sorted low→high within each class. Classes sho
 
 ```{r}
 #| label: fried-over
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose", "fried_grp", "Fried frailty class (0/1/2)", ymax = 50))
+emit_plots(lapply(LOESS_EQS, function(eq) ecog_plot(cl_index, eq, "Overdose", "fried_grp", "Fried frailty class (0/1/2)", ymax = 50)), "fried-over")
 ```
 
 ### Underdose
 
 ```{r}
 #| label: fried-under
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose", "fried_grp", "Fried frailty class (0/1/2)", ymax = 50))
+emit_plots(lapply(LOESS_EQS, function(eq) ecog_plot(cl_index, eq, "Underdose", "fried_grp", "Fried frailty class (0/1/2)", ymax = 50)), "fried-under")
 ```
 
 
@@ -1026,18 +1158,20 @@ are sorted low→high within each group. Y-axis fixed at 0–50 to match the oth
 
 ```{r}
 #| label: cachexia-over
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose", "cachexia_grp", "Cachexia", ymax = 50))
+emit_plots(lapply(LOESS_EQS, function(eq) ecog_plot(cl_index, eq, "Overdose", "cachexia_grp", "Cachexia", ymax = 50)), "cachexia-over")
 ```
 
 ### Underdose
 
 ```{r}
 #| label: cachexia-under
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose", "cachexia_grp", "Cachexia", ymax = 50))
+emit_plots(lapply(LOESS_EQS, function(eq) ecog_plot(cl_index, eq, "Underdose", "cachexia_grp", "Cachexia", ymax = 50)), "cachexia-under")
 ```
 
 
@@ -1052,18 +1186,20 @@ N per group is under the x-axis; the 5 drug bars are sorted low→high. Y-axis f
 
 ```{r}
 #| label: asgppp-over
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Overdose", "asgppp_grp", "ASG-PPP (PG-SGA)", ymax = 50))
+emit_plots(lapply(LOESS_EQS, function(eq) ecog_plot(cl_index, eq, "Overdose", "asgppp_grp", "ASG-PPP (PG-SGA)", ymax = 50)), "asgppp-over")
 ```
 
 ### Underdose
 
 ```{r}
 #| label: asgppp-under
+#| results: asis
 #| fig-width: 7
 #| fig-height: 4
-for (eq in LOESS_EQS) print(ecog_plot(cl_index, eq, "Underdose", "asgppp_grp", "ASG-PPP (PG-SGA)", ymax = 50))
+emit_plots(lapply(LOESS_EQS, function(eq) ecog_plot(cl_index, eq, "Underdose", "asgppp_grp", "ASG-PPP (PG-SGA)", ymax = 50)), "asgppp-under")
 ```
 
 
