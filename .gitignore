@@ -15,3 +15,5 @@ Data/
 /*.docx
 
 **/*.quarto_ipynb
+
+render.log

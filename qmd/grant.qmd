@@ -494,44 +494,12 @@ emit_plots(list(overlay_plot("count"), overlay_plot("percent")),
 # Figure 4 — Overdose risk at 10 %, 15 % and 20 %, by frailty and cachexia
 
 Dose set from **eGFR~cr-cys~ (CKD-EPI 2021)**, reference = measured GFR, absolute mL/min.
-A patient is overdosed at threshold *t* when $5(\text{eGFR}+25) > 5(1+t)(\text{mGFR}+25)$.
-Bars are exact binomial 95 % CIs. The dashed line is the whole-cohort rate at each threshold.
-
-::: {.callout-warning}
-## What this figure actually shows
-
-The drafted sentence — *"Among subset of patients who underwent frailty and cachexia
-assessments, the risk of overdosing increased"* — is **not supported** by these data, on
-either GFR scale. Read either way:
-
-- **Assessed subset vs whole cohort.** The frailty-assessed subset is *lower* than the full
-  cohort at every threshold (≥20 %: 9.0 % vs 11.8 %). The cachexia-assessed subset is
-  indistinguishable from it (12.8 % vs 11.8 %).
-- **Within the subsets.** Fried frailty shows only a weak, non-significant gradient
-  (≥15 %: 12.1 % → 17.8 % → 19.5 % across non-frail / pre-frail / frail, trend *p* = 0.08;
-  the ≥20 % row is flat). The frailty ordering itself is sound — it was verified against age
-  and ECOG, both of which rise monotonically across the three groups. Cachexia shows nothing
-  at all (≥20 %: 12.4 % with vs 13.0 % without, *p* = 0.90).
-
-- **ASG-PPP (PG-SGA)** is the only marker with a visible separation — ≥20 %: 15.6 % vs
-  10.6 % — but it runs **backwards**. Neither source file carries a codebook, so the coding
-  was established from the data: rating **1 is the malnourished group** (49.6 % of them
-  cachectic vs 11.3 % of rating 2, Fisher *p* = 2 × 10⁻²⁸; also worse ECOG, lower BMI).
-  The group being overdosed more often is therefore the **well-nourished** one — the
-  opposite of the hypothesis. It is also not significant (*p* = 0.065). All confidence
-  intervals overlap.
-
-The headline threshold result is solid and worth keeping: dosing from eGFR~cr-cys~ instead
-of measured GFR still overdoses **31.9 %** of the cohort by ≥10 %, **19.8 %** by ≥15 % and
-**11.8 %** by ≥20 %. The frailty/cachexia amplification claim needs rewording before it
-goes in the grant.
-:::
 
 ```{r}
 #| label: grant-thresholds
 #| results: asis
-#| fig-width: 8
-#| fig-height: 4.6
+#| fig-width: 9
+#| fig-height: 4.2
 THRESHOLDS <- c(0.10, 0.15, 0.20)
 THR_LABS   <- c("≥10% overdose", "≥15% overdose", "≥20% overdose")
 THR_COLS   <- c("#FDD0A2", "#FD8D3C", "#D94801")
@@ -583,29 +551,46 @@ sg$xlab <- factor(sg$xlab, levels = .lev)
 ref <- sg %>% dplyr::filter(domain == "Whole cohort") %>%
   dplyr::select(thr, ref = pct)
 
-p_thr <- ggplot2::ggplot(sg, ggplot2::aes(xlab, pct, fill = thr)) +
-  ggplot2::geom_hline(data = ref, ggplot2::aes(yintercept = ref),
-                      linetype = "dashed", colour = "grey45", linewidth = 0.4) +
-  ggplot2::geom_col(position = ggplot2::position_dodge(width = 0.8), width = 0.72) +
-  ggplot2::geom_errorbar(ggplot2::aes(ymin = lo, ymax = hi),
-                         position = ggplot2::position_dodge(width = 0.8),
-                         width = 0.18, linewidth = 0.4, colour = "grey25") +
-  ggplot2::facet_grid(thr ~ domain, scales = "free_x", space = "free_x") +
-  ggplot2::scale_fill_manual(values = stats::setNames(THR_COLS, THR_LABS)) +
-  ggplot2::labs(
-    x = NULL, y = "% overdosed", fill = NULL,
-    title = "Carboplatin overdose risk when dosing by eGFRcr-cys, by frailty and cachexia",
-    subtitle = "CKD-EPI 2021 cr-cys vs measured GFR · absolute mL/min · exact binomial 95% CI\nDashed rule = whole-cohort rate at that threshold") +
-  ggplot2::theme_minimal(base_size = 10) +
-  ggplot2::theme(
-    legend.position = "none",
-    plot.title      = ggplot2::element_text(face = "bold", size = 11),
-    plot.subtitle   = ggplot2::element_text(size = 8.5, colour = "grey30"),
-    strip.text      = ggplot2::element_text(face = "bold", size = 9),
-    panel.grid.major.x = ggplot2::element_blank(),
-    axis.text.x     = ggplot2::element_text(size = 8))
+# One figure per threshold rather than a stacked thr x domain grid: with three
+# rows crammed into one panel height the y axis was unreadable. Each threshold
+# now gets the full plot height. The y scale is held common across the three so
+# the ~32 / 20 / 12 % headline ordering stays directly comparable.
+Y_MAX <- ceiling(max(sg$hi, na.rm = TRUE) / 5) * 5
 
-emit_plots(list(p_thr), "grant_crcys_overdose_thresholds_frailty_cachexia")
+mk_thr_plot <- function(t_lab) {
+  sg_t  <- dplyr::filter(sg,  thr == t_lab)
+  ref_t <- dplyr::filter(ref, thr == t_lab)
+
+  ggplot2::ggplot(sg_t, ggplot2::aes(xlab, pct, fill = thr)) +
+    ggplot2::geom_hline(data = ref_t, ggplot2::aes(yintercept = ref),
+                        linetype = "dashed", colour = "grey45", linewidth = 0.4) +
+    ggplot2::geom_col(width = 0.72) +
+    ggplot2::geom_errorbar(ggplot2::aes(ymin = lo, ymax = hi),
+                           width = 0.18, linewidth = 0.4, colour = "grey25") +
+    ggplot2::facet_grid(. ~ domain, scales = "free_x", space = "free_x") +
+    ggplot2::scale_fill_manual(values = stats::setNames(THR_COLS, THR_LABS)) +
+    ggplot2::scale_y_continuous(
+      breaks = seq(0, Y_MAX, 5), limits = c(0, Y_MAX),
+      expand = ggplot2::expansion(mult = c(0, 0.02))) +
+    ggplot2::labs(
+      x = NULL, y = "% overdosed", fill = NULL,
+      title = paste0("Carboplatin overdose risk when dosing by eGFRcr-cys — ",
+                     t_lab),
+      subtitle = "CKD-EPI 2021 cr-cys vs measured GFR · absolute mL/min · exact binomial 95% CI\nDashed rule = whole-cohort rate at this threshold") +
+    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme(
+      legend.position = "none",
+      plot.title      = ggplot2::element_text(face = "bold", size = 12),
+      plot.subtitle   = ggplot2::element_text(size = 9, colour = "grey30"),
+      strip.text      = ggplot2::element_text(face = "bold", size = 10),
+      panel.grid.major.x = ggplot2::element_blank(),
+      axis.text.y     = ggplot2::element_text(size = 10),
+      axis.title.y    = ggplot2::element_text(size = 11),
+      axis.text.x     = ggplot2::element_text(size = 9))
+}
+
+emit_plots(lapply(THR_LABS, mk_thr_plot),
+           "grant_crcys_overdose_thresholds_frailty_cachexia")
 ```
 
 ```{r}
