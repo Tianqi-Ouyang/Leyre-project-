@@ -378,7 +378,7 @@ window.Quarto = {
 <td><code>fried_grp</code></td>
 <td>factor <strong>NEW</strong></td>
 <td><code>fried_classification</code> 0/1/2 → Non-frail / Pre-frail / Frail</td>
-<td>Figure 4. <strong>Mapping is inferred</strong> — the file ships no codebook; the 165/314/113 split matches the standard Fried ordering. Confirm before publishing.</td>
+<td>Figure 4. No codebook ships with the file, so the ordering was <strong>verified against external markers</strong>: age 67.4 → 69.4 → 70.9 (trend <em>p</em> = 6×10⁻⁵) and ECOG ≥2 at 0.0 % → 5.4 % → 27.4 % (<em>p</em> = 2×10⁻²⁷). Standard Fried ordering confirmed.</td>
 </tr>
 <tr class="odd">
 <td><code>cachexia_grp</code></td>
@@ -389,8 +389,8 @@ window.Quarto = {
 <tr class="even">
 <td><code>asgppp_grp</code></td>
 <td>factor <strong>NEW</strong></td>
-<td><code>ASG-PPP</code> 1/2 → ASG-PPP 1 / ASG-PPP 2</td>
-<td>Figure 4. Left unlabelled — which rating is the worse nutritional state is not documented in the source.</td>
+<td><code>ASG-PPP</code> 1 → Malnourished, 2 → Well-nourished</td>
+<td>Figure 4. Direction <strong>established from the data</strong>, and it is the reverse of the intuitive “higher = worse”: 49.6 % of rating 1 are cachectic vs 11.3 % of rating 2 (Fisher <em>p</em> = 2×10⁻²⁸), with worse ECOG and lower BMI. See <strong>C10</strong>.</td>
 </tr>
 <tr class="odd">
 <td><code>d_hist</code>, <code>n_tot</code>, <code>q</code></td>
@@ -550,6 +550,7 @@ window.Quarto = {
 <p><strong>C6 · LOESS and the clipping.</strong> The outcome is binary per patient (overdosed or not). LOESS takes a locally weighted average of those 0/1 values in a sliding window (<code>span = 0.9</code>), which estimates the <em>probability</em> of overdose as a smooth function of the index. It is unconstrained, so where data are sparse it can return values above 100 % or below 0 % — the raw Cockcroft-Gault fit reached ~105 %. The drawn curve and band are therefore clipped to [0, 100]. The fit is not modified, so a curve lying flat on 0 % at the far right is at the edge of the data, not a genuine plateau.</p>
 <p><strong>C7 · The dual axis in Figure 3.</strong> Two quantities with different units share one panel. The overdose curve owns the left axis (0–100 %). The bars are drawn as <code>count / CNT_MAX × 100</code> so they occupy the same 0–100 range, and the right axis inverts exactly that transform to relabel them as counts (or as % of cohort). Bar <em>heights are identical</em> in both variants — only the right-hand labelling changes. The right axis and the bars share a colour so the mapping needs no legend.</p>
 <p><strong>C8 · Exact binomial CIs.</strong> Figure 4’s smallest cell is 113 patients (Frail) with ~10 events. Normal-approximation intervals are unreliable that sparse and can run below zero, so the Clopper-Pearson exact interval is used instead. Overlapping intervals across groups are the reason the frailty and cachexia contrasts are reported as null.</p>
+<p><strong>C10 · Recovering an undocumented coding.</strong> Neither the frailty nor the nutrition file ships a codebook, so what <code>0/1/2</code> and <code>1/2</code> mean had to be recovered rather than assumed. The method is to predict what each candidate mapping implies for <em>other</em> variables and check which holds. Frailty should track age and performance status — it does, monotonically, so 0 = non-frail through 2 = frail. Nutrition rating should track cachexia — and there the answer inverts the intuitive reading: rating <strong>1</strong> is the malnourished group. This matters beyond labelling, because ASG-PPP is the only marker in Figure 4 with a visible separation, and knowing its direction turns an apparent confirmation of the grant hypothesis into a contradiction of it.</p>
 <p><strong>C9 · Why the −10 % line.</strong> A single fixed reference at −10 % replaces the old zero line and cohort-median line. Zero is not the clinically interesting point — it is where two <em>estimates</em> agree, which says nothing about dosing. −10 % sits where the overdose curve begins to climb steeply, so it reads as a candidate flag threshold rather than a statistical artefact.</p>
 
 

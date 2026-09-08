@@ -81,9 +81,9 @@ Every equation is stored twice. Which one you use is not cosmetic — see concep
 | `MGFR` | named vector | `index → mGFRindex`, `nonindex → mGFRnon_index` | Picks the reference column that matches the scale being analysed. Guards against comparing an indexed eGFR to an absolute mGFR. |
 | `cls` | Overdose / Underdose / Concordant | `carbo_class()` output per patient × equation | The outcome. Everything plotted is the share of patients with `cls == "Overdose"`. |
 | `carbo_nonindex`, `carbo_index` | long tables, 9,600 rows | 1,200 patients × 8 equations, carrying `cls` and `egfr_pctdiff_cg` | Long format lets one plotting function serve all 8 panels. |
-| `fried_grp` | factor **NEW** | `fried_classification` 0/1/2 → Non-frail / Pre-frail / Frail | Figure 4. **Mapping is inferred** — the file ships no codebook; the 165/314/113 split matches the standard Fried ordering. Confirm before publishing. |
+| `fried_grp` | factor **NEW** | `fried_classification` 0/1/2 → Non-frail / Pre-frail / Frail | Figure 4. No codebook ships with the file, so the ordering was **verified against external markers**: age 67.4 → 69.4 → 70.9 (trend *p* = 6×10⁻⁵) and ECOG ≥2 at 0.0 % → 5.4 % → 27.4 % (*p* = 2×10⁻²⁷). Standard Fried ordering confirmed. |
 | `cachexia_grp` | factor **NEW** | `Cachexia` 0/1 → No cachexia / Cachexia | Figure 4. |
-| `asgppp_grp` | factor **NEW** | `ASG-PPP` 1/2 → ASG-PPP 1 / ASG-PPP 2 | Figure 4. Left unlabelled — which rating is the worse nutritional state is not documented in the source. |
+| `asgppp_grp` | factor **NEW** | `ASG-PPP` 1 → Malnourished, 2 → Well-nourished | Figure 4. Direction **established from the data**, and it is the reverse of the intuitive "higher = worse": 49.6 % of rating 1 are cachectic vs 11.3 % of rating 2 (Fisher *p* = 2×10⁻²⁸), with worse ECOG and lower BMI. See **C10**. |
 | `d_hist`, `n_tot`, `q` | data / 1,200 / quartiles | non-missing rows of the index, its N, and its 25/50/75th centiles | Figure 2 and its summary table. |
 
 #### B2 — Classification functions
@@ -173,6 +173,16 @@ no legend.
 Normal-approximation intervals are unreliable that sparse and can run below zero, so the
 Clopper-Pearson exact interval is used instead. Overlapping intervals across groups are the
 reason the frailty and cachexia contrasts are reported as null.
+
+**C10 · Recovering an undocumented coding.** Neither the frailty nor the nutrition file
+ships a codebook, so what `0/1/2` and `1/2` mean had to be recovered rather than assumed.
+The method is to predict what each candidate mapping implies for *other* variables and check
+which holds. Frailty should track age and performance status — it does, monotonically, so
+0 = non-frail through 2 = frail. Nutrition rating should track cachexia — and there the
+answer inverts the intuitive reading: rating **1** is the malnourished group. This matters
+beyond labelling, because ASG-PPP is the only marker in Figure 4 with a visible separation,
+and knowing its direction turns an apparent confirmation of the grant hypothesis into a
+contradiction of it.
 
 **C9 · Why the −10 % line.** A single fixed reference at −10 % replaces the old zero line and
 cohort-median line. Zero is not the clinically interesting point — it is where two *estimates*

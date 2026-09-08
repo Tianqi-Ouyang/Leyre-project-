@@ -109,9 +109,10 @@ dat <- raw %>%
 
 # --- Subgroups for the frailty / cachexia figure ----------------------------
 # Fried frailty class (separate file; the key is misspelled 'protocal'); 592 of
-# 1200 have it. The file ships no codebook — 0/1/2 are read as the standard Fried
-# phenotype ordering (robust / pre-frail / frail), which matches the observed
-# 165 / 314 / 113 split. Confirm before publishing.
+# 1200 have it. The file ships no codebook, so the 0/1/2 ordering was checked
+# against external markers: mean age rises 67.4 -> 69.4 -> 70.9 (trend p = 6e-05)
+# and ECOG >=2 rises 0.0% -> 5.4% -> 27.4% (p = 2e-27). Both confirm the standard
+# Fried ordering, so 0 = non-frail, 1 = pre-frail, 2 = frail.
 .fr <- suppressWarnings(readxl::read_excel("Data/Frailty data to MGH.xlsx"))
 dat$fried_grp <- factor(.fr$fried_classification[match(dat$protocol, .fr$protocal)],
                         levels = c(0, 1, 2),
@@ -124,8 +125,13 @@ names(.nut) <- trimws(names(.nut))
 .nk <- match(dat$protocol, .nut$`Protocol Number`)
 dat$cachexia_grp <- factor(.nut$Cachexia[.nk], levels = c(0, 1),
                            labels = c("No cachexia", "Cachexia"))
+# ASG-PPP direction also established from the data, and it is the OPPOSITE of the
+# intuitive "higher number = worse" reading: rating 1 is the malnourished group.
+# 49.6% of rating 1 are cachectic vs 11.3% of rating 2 (Fisher p = 2e-28), with
+# worse ECOG (6.2% vs 3.6% at >=2) and slightly lower BMI. Labels say so, so the
+# figure cannot be misread.
 dat$asgppp_grp   <- factor(.nut$`ASG-PPP`[.nk], levels = c(1, 2),
-                           labels = c("ASG-PPP 1", "ASG-PPP 2"))
+                           labels = c("Malnourished", "Well-nourished"))
 
 # --- Equation registry: the 8 dosing equations, same as the heatmap page ----
 # Reference = measured GFR. The creatinine CKD-EPI column is the 2021 (race-free)
@@ -503,12 +509,17 @@ either GFR scale. Read either way:
   indistinguishable from it (12.8 % vs 11.8 %).
 - **Within the subsets.** Fried frailty shows only a weak, non-significant gradient
   (≥15 %: 12.1 % → 17.8 % → 19.5 % across non-frail / pre-frail / frail, trend *p* = 0.08;
-  the ≥20 % row is flat). Cachexia shows nothing at all (≥20 %: 12.4 % with vs 13.0 %
-  without, *p* = 0.90).
+  the ≥20 % row is flat). The frailty ordering itself is sound — it was verified against age
+  and ECOG, both of which rise monotonically across the three groups. Cachexia shows nothing
+  at all (≥20 %: 12.4 % with vs 13.0 % without, *p* = 0.90).
 
-The one marker that does trend in the expected direction is **ASG-PPP (PG-SGA) rating 2 vs
-1** — ≥15 %: 22.5 % vs 17.8 %; ≥20 %: 15.6 % vs 10.6 % — but it does not reach significance
-(*p* = 0.065 at ≥20 %). All confidence intervals overlap.
+- **ASG-PPP (PG-SGA)** is the only marker with a visible separation — ≥20 %: 15.6 % vs
+  10.6 % — but it runs **backwards**. Neither source file carries a codebook, so the coding
+  was established from the data: rating **1 is the malnourished group** (49.6 % of them
+  cachectic vs 11.3 % of rating 2, Fisher *p* = 2 × 10⁻²⁸; also worse ECOG, lower BMI).
+  The group being overdosed more often is therefore the **well-nourished** one — the
+  opposite of the hypothesis. It is also not significant (*p* = 0.065). All confidence
+  intervals overlap.
 
 The headline threshold result is solid and worth keeping: dosing from eGFR~cr-cys~ instead
 of measured GFR still overdoses **31.9 %** of the cohort by ≥10 %, **19.8 %** by ≥15 % and
