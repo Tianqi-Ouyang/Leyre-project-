@@ -610,17 +610,70 @@ emit_plots(list(p_thr), "grant_crcys_overdose_thresholds_frailty_cachexia")
 
 ```{r}
 #| label: grant-thresholds-table
-sg %>%
+# One block per assessment domain, each closed by its own significance row, so a
+# reader compares groups down a block rather than across a flat list.
+#   3 ordered groups -> Cochran-Armitage trend test (prop.trend.test)
+#   2 groups         -> Fisher exact test
+pval_row <- function(d) {
+  rows <- sg %>% dplyr::filter(domain == d)
+  ps <- vapply(THR_LABS, function(t) {
+    r <- rows %>% dplyr::filter(thr == t) %>% dplyr::arrange(grp_i)
+    if (nrow(r) == 3) stats::prop.trend.test(r$k, r$N)$p.value
+    else stats::fisher.test(matrix(c(r$k[1], r$N[1] - r$k[1],
+                                     r$k[2], r$N[2] - r$k[2]), nrow = 2))$p.value
+  }, numeric(1))
+  tibble::tibble(
+    Domain = d,
+    Group  = if (nrow(rows) / length(THR_LABS) == 3) "p (trend)" else "p (difference)",
+    N = "", `≥10%` = sprintf("%.2f", ps[1]),
+    `≥15%` = sprintf("%.2f", ps[2]), `≥20%` = sprintf("%.2f", ps[3]))
+}
+
+cells <- sg %>%
   dplyr::arrange(domain, grp_i, thr) %>%
-  dplyr::transmute(Domain = domain, Group = grp, N,
-                   Threshold = thr,
-                   `% overdosed (95% CI)` =
-                     sprintf("%.1f%% (%.1f–%.1f)", pct, lo, hi)) %>%
-  tidyr::pivot_wider(names_from = Threshold,
-                     values_from = `% overdosed (95% CI)`) %>%
-  flextable::flextable() %>%
+  dplyr::transmute(Domain = domain,
+                   Group = ifelse(grp == "Overall", "Overall (reference)", grp),
+                   N = format(N, big.mark = ","), thr,
+                   v = sprintf("%.1f (%.1f–%.1f)", pct, lo, hi)) %>%
+  tidyr::pivot_wider(names_from = thr, values_from = v) %>%
+  dplyr::rename(`≥10%` = !!THR_LABS[1], `≥15%` = !!THR_LABS[2], `≥20%` = !!THR_LABS[3])
+
+# Interleave each domain's groups with its significance row.
+DOMS <- c("Fried frailty", "Cachexia", "ASG-PPP (PG-SGA)")
+tbl <- dplyr::bind_rows(
+  cells %>% dplyr::filter(Domain == "Whole cohort"),
+  purrr::map_dfr(DOMS, ~ dplyr::bind_rows(
+    cells %>% dplyr::filter(Domain == .x), pval_row(.x)))) %>%
+  dplyr::mutate(Domain = as.character(Domain))
+
+.p_rows <- which(grepl("^p \\(", tbl$Group))
+.ref_row <- which(tbl$Group == "Overall (reference)")
+.starts  <- which(!duplicated(tbl$Domain))
+
+flextable::flextable(tbl) %>%
+  flextable::add_header_row(
+    values = c("", "", "", "% of group overdosed (95% CI)"),
+    colwidths = c(1, 1, 1, 3)) %>%
+  flextable::merge_v(j = "Domain") %>%
+  flextable::valign(j = "Domain", valign = "top") %>%
   flextable::bold(part = "header") %>%
-  flextable::autofit()
+  flextable::align(i = 1, part = "header", align = "center") %>%
+  flextable::align(j = c("N", "≥10%", "≥15%", "≥20%"), align = "right") %>%
+  flextable::bold(i = .ref_row) %>%
+  flextable::bg(i = .ref_row, bg = "#F2F2F2") %>%
+  flextable::italic(i = .p_rows) %>%
+  flextable::color(i = .p_rows, color = "grey35") %>%
+  flextable::hline(i = setdiff(.starts - 1, 0)) %>%
+  flextable::width(j = "Domain", width = 1.25) %>%
+  flextable::width(j = "Group", width = 1.5) %>%
+  flextable::width(j = "N", width = 0.5) %>%
+  flextable::width(j = c("≥10%", "≥15%", "≥20%"), width = 1.35) %>%
+  flextable::fontsize(size = 9, part = "all") %>%
+  flextable::padding(padding.top = 3, padding.bottom = 3, part = "all") %>%
+  flextable::add_footer_lines(
+    "Read down each block: groups within a domain, closed by a test of whether they differ. Trend test across the three ordered frailty groups; Fisher exact for two-group comparisons. Reference row shaded. ASG-PPP rating 1 is the malnourished group (see the callout above) — the higher overdose rate sits with the well-nourished.") %>%
+  flextable::fontsize(size = 8, part = "footer") %>%
+  flextable::color(part = "footer", color = "grey35")
 ```
 
 # Notes
