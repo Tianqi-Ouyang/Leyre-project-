@@ -71,6 +71,35 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -124,6 +153,12 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#egfr-equations-compared-reference-measured-gfr" id="toc-egfr-equations-compared-reference-measured-gfr" class="nav-link" data-scroll-target="#egfr-equations-compared-reference-measured-gfr">eGFR equations compared (reference = measured GFR)</a></li>
   <li><a href="#drugs" id="toc-drugs" class="nav-link" data-scroll-target="#drugs">Drugs</a></li>
   </ul></li>
+  <li><a href="#appendix-variable-codebook-logic-and-concepts" id="toc-appendix-variable-codebook-logic-and-concepts" class="nav-link" data-scroll-target="#appendix-variable-codebook-logic-and-concepts">Appendix — Variable codebook, logic and concepts</a>
+  <ul class="collapse">
+  <li><a href="#a.-source-files-and-input-columns" id="toc-a.-source-files-and-input-columns" class="nav-link" data-scroll-target="#a.-source-files-and-input-columns">A. Source files and input columns</a></li>
+  <li><a href="#b.-derived-variables" id="toc-b.-derived-variables" class="nav-link" data-scroll-target="#b.-derived-variables">B. Derived variables</a></li>
+  <li><a href="#c.-concepts" id="toc-c.-concepts" class="nav-link" data-scroll-target="#c.-concepts">C. Concepts</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -155,6 +190,7 @@ ul.task-list li input[type="checkbox"] {
 <p>The analysis asks: <em>if chemotherapy were dosed from each estimated-GFR (eGFR) equation instead of measured GFR, how often would patients be over- or under-dosed?</em> Results are presented as <strong>heatmaps</strong> across equations and drugs, on both <strong>indexed</strong> (mL/min/1.73 m²) and <strong>non-indexed</strong> (absolute mL/min) GFR scales.</p>
 <ul>
 <li><a href="./qmd/dosing_heatmap.html"><strong>Dosing Heatmaps →</strong></a></li>
+<li><a href="./qmd/grant.html"><strong>Grant figures →</strong></a> — carboplatin overdose risk vs the eGFR<sub>cr-cys</sub> / Cockcroft-Gault discordance index</li>
 </ul>
 <section id="egfr-equations-compared-reference-measured-gfr" class="level3">
 <h3 class="anchored" data-anchor-id="egfr-equations-compared-reference-measured-gfr">eGFR equations compared (reference = measured GFR)</h3>
@@ -163,6 +199,354 @@ ul.task-list li input[type="checkbox"] {
 <section id="drugs" class="level3">
 <h3 class="anchored" data-anchor-id="drugs">Drugs</h3>
 <p>Carboplatin (Calvert, ±15 % and ±20 % margins) · Cisplatin · Methotrexate · Melphalan</p>
+</section>
+</section>
+<section id="appendix-variable-codebook-logic-and-concepts" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-variable-codebook-logic-and-concepts">Appendix — Variable codebook, logic and concepts</h2>
+<p>Reference for the <a href="./qmd/grant.html"><strong>Grant</strong></a> figures: every input column, derived variable, function and figure constant they use, why each exists, and what the underlying ideas mean. Figure numbers below refer to that page. Rows marked <strong>NEW</strong> were added in the most recent update (10 % axis ticks, the −10 % reference line, the overlay figure, and the threshold / frailty figure).</p>
+<section id="a.-source-files-and-input-columns" class="level3">
+<h3 class="anchored" data-anchor-id="a.-source-files-and-input-columns">A. Source files and input columns</h3>
+<p>Three Excel files, all gitignored — patient-level data never leaves the machine.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Source file</th>
+<th>Key</th>
+<th>Columns this page reads</th>
+<th>N</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>OncoGFR1200_MGH_chemo_CJASN.xlsx</code></td>
+<td><code>protocol</code></td>
+<td>the 8 equation columns × 2 scales, <code>mGFRindex</code>, <code>mGFRnon_index</code></td>
+<td>1,200</td>
+</tr>
+<tr class="even">
+<td><code>Frailty data to MGH.xlsx</code></td>
+<td><code>protocal</code> <em>(sic — misspelled in the source)</em></td>
+<td><code>fried_classification</code></td>
+<td>592</td>
+</tr>
+<tr class="odd">
+<td><code>Nutrition data.xlsx</code></td>
+<td><code>Protocol Number</code></td>
+<td><code>Cachexia</code>, <code>ASG-PPP</code></td>
+<td>689</td>
+</tr>
+</tbody>
+</table>
+<section id="kidney-function-columns" class="level4">
+<h4 class="anchored" data-anchor-id="kidney-function-columns">Kidney-function columns</h4>
+<p>Every equation is stored twice. Which one you use is not cosmetic — see concept <strong>C2</strong>.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>eGFR family</th>
+<th>Equation</th>
+<th>Indexed (mL/min/1.73 m²)</th>
+<th>Absolute (mL/min)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>reference</td>
+<td>Measured GFR (⁵¹Cr-EDTA)</td>
+<td><code>mGFRindex</code></td>
+<td><code>mGFRnon_index</code></td>
+</tr>
+<tr class="even">
+<td>eGFRcr</td>
+<td>CKD-EPI 2021</td>
+<td><code>CKDEPIcr21index</code></td>
+<td><code>CKDEPIcr21non_index</code></td>
+</tr>
+<tr class="odd">
+<td>eGFRcr</td>
+<td>EKFC 2021</td>
+<td><code>EKFCcrindex</code></td>
+<td><code>EKFCcrnon_index</code></td>
+</tr>
+<tr class="even">
+<td>eGFRcys</td>
+<td>CKD-EPI 2012</td>
+<td><code>CKDEPIcysindex</code></td>
+<td><code>CKDEPIcysnon_index</code></td>
+</tr>
+<tr class="odd">
+<td>eGFRcys</td>
+<td>EKFC 2023</td>
+<td><code>EKFCcysindex</code></td>
+<td><code>EKFCcysnon_index</code></td>
+</tr>
+<tr class="even">
+<td>eGFRcr-cys</td>
+<td>CKD-EPI 2021</td>
+<td><code>CKDEPIcrcys21index</code></td>
+<td><code>CKDEPIcrcys21non_index</code></td>
+</tr>
+<tr class="odd">
+<td>eGFRcr-cys</td>
+<td>EKFC 2023</td>
+<td><code>EKFCcrcysindex</code></td>
+<td><code>EKFCcrcysnon-index</code> <em>(hyphen intentional)</em></td>
+</tr>
+<tr class="even">
+<td>ClCr</td>
+<td>Cockcroft-Gault</td>
+<td><code>CGindex</code></td>
+<td><code>CGnon_index</code></td>
+</tr>
+<tr class="odd">
+<td>Panel</td>
+<td>CKD-EPI 4-marker</td>
+<td><code>CKDEPI4mark</code></td>
+<td><code>CKDEPI4marknon_index</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="b.-derived-variables" class="level3">
+<h3 class="anchored" data-anchor-id="b.-derived-variables">B. Derived variables</h3>
+<section id="b1-the-analysis-variables" class="level4">
+<h4 class="anchored" data-anchor-id="b1-the-analysis-variables">B1 — The analysis variables</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>Type</th>
+<th>Definition</th>
+<th>Why it exists</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>egfr_pctdiff_cg</code></td>
+<td>numeric, %</td>
+<td><code>(CKDEPIcrcys21non_index − CGnon_index) / CGnon_index × 100</code></td>
+<td>The x-axis of every figure — the Jiaxuan discordance index (<strong>C4</strong>). Both terms absolute mL/min, as specified.</td>
+</tr>
+<tr class="even">
+<td><code>reg</code></td>
+<td>table, 8 rows</td>
+<td>equation id → family, display label, indexed column, absolute column</td>
+<td>One registry so a figure loops over equations instead of hard-coding 8 column names.</td>
+</tr>
+<tr class="odd">
+<td><code>MGFR</code></td>
+<td>named vector</td>
+<td><code>index → mGFRindex</code>, <code>nonindex → mGFRnon_index</code></td>
+<td>Picks the reference column that matches the scale being analysed. Guards against comparing an indexed eGFR to an absolute mGFR.</td>
+</tr>
+<tr class="even">
+<td><code>cls</code></td>
+<td>Overdose / Underdose / Concordant</td>
+<td><code>carbo_class()</code> output per patient × equation</td>
+<td>The outcome. Everything plotted is the share of patients with <code>cls == "Overdose"</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>carbo_nonindex</code>, <code>carbo_index</code></td>
+<td>long tables, 9,600 rows</td>
+<td>1,200 patients × 8 equations, carrying <code>cls</code> and <code>egfr_pctdiff_cg</code></td>
+<td>Long format lets one plotting function serve all 8 panels.</td>
+</tr>
+<tr class="even">
+<td><code>fried_grp</code></td>
+<td>factor <strong>NEW</strong></td>
+<td><code>fried_classification</code> 0/1/2 → Non-frail / Pre-frail / Frail</td>
+<td>Figure 4. <strong>Mapping is inferred</strong> — the file ships no codebook; the 165/314/113 split matches the standard Fried ordering. Confirm before publishing.</td>
+</tr>
+<tr class="odd">
+<td><code>cachexia_grp</code></td>
+<td>factor <strong>NEW</strong></td>
+<td><code>Cachexia</code> 0/1 → No cachexia / Cachexia</td>
+<td>Figure 4.</td>
+</tr>
+<tr class="even">
+<td><code>asgppp_grp</code></td>
+<td>factor <strong>NEW</strong></td>
+<td><code>ASG-PPP</code> 1/2 → ASG-PPP 1 / ASG-PPP 2</td>
+<td>Figure 4. Left unlabelled — which rating is the worse nutritional state is not documented in the source.</td>
+</tr>
+<tr class="odd">
+<td><code>d_hist</code>, <code>n_tot</code>, <code>q</code></td>
+<td>data / 1,200 / quartiles</td>
+<td>non-missing rows of the index, its N, and its 25/50/75th centiles</td>
+<td>Figure 2 and its summary table.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="b2-classification-functions" class="level4">
+<h4 class="anchored" data-anchor-id="b2-classification-functions">B2 — Classification functions</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>Signature</th>
+<th>Logic</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>carbo_class()</code></td>
+<td><code>(gfr, mgfr, k_hi = 6, k_lo = 4)</code></td>
+<td>Overdose if <code>5(gfr+25) &gt; k_hi·(mgfr+25)</code>; Underdose if <code>&lt; k_lo·(mgfr+25)</code>; else Concordant. Defaults are the ±20 % band (<strong>C3</strong>).</td>
+</tr>
+<tr class="even">
+<td><code>carbo_over_thr()</code></td>
+<td><code>(gfr, mgfr, thr)</code> <strong>NEW</strong></td>
+<td>Overdose-only indicator at an arbitrary tolerance: <code>5(gfr+25) &gt; 5(1+thr)(mgfr+25)</code>. Generalises <code>carbo_class</code> so one call covers 10 %, 15 % and 20 %.</td>
+</tr>
+<tr class="odd">
+<td><code>build_carbo_long()</code></td>
+<td><code>(scale)</code></td>
+<td>Expands the wide file to one row per patient × equation on the chosen scale, attaching <code>cls</code> and the index.</td>
+</tr>
+<tr class="even">
+<td><code>grant_loess()</code></td>
+<td><code>(cl, eq, direction)</code></td>
+<td>Fits the smooth, clips it to [0, 100] (<strong>C6</strong>), draws one panel.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="b3-figure-control-constants" class="level4">
+<h4 class="anchored" data-anchor-id="b3-figure-control-constants">B3 — Figure-control constants</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Constant</th>
+<th>Value</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>PCTD_CG_XLIM</code></td>
+<td><code>c(-50, 40)</code></td>
+<td>Plot window for Figures 1 and 3. Holds 98.2 % of patients; keeps the smooth off sparse tails.</td>
+</tr>
+<tr class="even">
+<td><code>PCTD_CG_BREAKS</code></td>
+<td><code>seq(-60, 60, 10)</code> <strong>NEW</strong></td>
+<td>Ticks every 10 percentage points. Spans the full data range (−52 to +53) so the unclipped distribution is ticked end to end; clipped figures simply drop the breaks outside their window.</td>
+</tr>
+<tr class="odd">
+<td><code>REF_LINE</code></td>
+<td><code>-10</code> <strong>NEW</strong></td>
+<td>The single black dashed reference line, replacing the former grey zero line and solid median line.</td>
+</tr>
+<tr class="even">
+<td><code>pctd_x()</code></td>
+<td>layer list <strong>NEW</strong></td>
+<td>Shared x-scale + visible black tick marks, so all four figures line up.</td>
+</tr>
+<tr class="odd">
+<td><code>ref_vline()</code></td>
+<td>layer <strong>NEW</strong></td>
+<td>The −10 % dashed rule, defined once.</td>
+</tr>
+<tr class="even">
+<td><code>BINW</code></td>
+<td><code>5</code></td>
+<td>Histogram bin width, percentage points.</td>
+</tr>
+<tr class="odd">
+<td><code>CNT_MAX</code></td>
+<td><code>ceiling(max(count)/25)·25</code> <strong>NEW</strong></td>
+<td>Tallest bin rounded up to a clean 25. Sets the right-hand axis of the overlay (<strong>C7</strong>).</td>
+</tr>
+<tr class="even">
+<td><code>THRESHOLDS</code></td>
+<td><code>c(0.10, 0.15, 0.20)</code> <strong>NEW</strong></td>
+<td>The three overdose tolerances in Figure 4.</td>
+</tr>
+<tr class="odd">
+<td><code>CARBO_RED</code></td>
+<td><code>#F8766D</code></td>
+<td>The carboplatin hue from the original 5-drug panels, kept so the line is recognisable.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="b4-figure-4-summary-table" class="level4">
+<h4 class="anchored" data-anchor-id="b4-figure-4-summary-table">B4 — Figure 4 summary table</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>domain</code> <strong>NEW</strong></td>
+<td>Which assessment the grouping comes from: Whole cohort / Fried frailty / Cachexia / ASG-PPP.</td>
+</tr>
+<tr class="even">
+<td><code>grp</code>, <code>grp_i</code> <strong>NEW</strong></td>
+<td>Group label, and its integer level. <code>grp_i</code> exists only to preserve clinical ordering — binding rows across domains collapses factors to character, which would sort “Frail, Non-frail, Pre-frail” alphabetically.</td>
+</tr>
+<tr class="odd">
+<td><code>N</code>, <code>k</code> <strong>NEW</strong></td>
+<td>Patients in the cell, and how many were overdosed.</td>
+</tr>
+<tr class="even">
+<td><code>pct</code>, <code>lo</code>, <code>hi</code> <strong>NEW</strong></td>
+<td><code>k/N × 100</code> with an exact binomial 95 % CI (<strong>C8</strong>).</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="c.-concepts" class="level3">
+<h3 class="anchored" data-anchor-id="c.-concepts">C. Concepts</h3>
+<p><strong>C1 · Measured GFR is the gold standard.</strong> Every “overdose” on this page is defined against ⁵¹Cr-EDTA plasma clearance, not against another estimate. So the figures measure <em>estimation error with a clinical consequence</em>, not disagreement between two guesses.</p>
+<p><strong>C2 · Indexed vs absolute GFR.</strong> Indexed GFR (mL/min/1.73 m²) rescales everyone to a standard body size — right for <em>staging</em> CKD, because it makes patients comparable. Absolute GFR (mL/min) is the patient’s actual clearance — right for <em>dosing</em>, because a drug is cleared by the kidney the patient actually has. The relationship is <code>absolute = indexed × BSA / 1.73</code> (verified in this dataset). Using an indexed GFR in Calvert systematically misdoses anyone whose body size is far from average, which is why the absolute scale is the primary analysis here.</p>
+<p><strong>C3 · Calvert and where the constants come from.</strong> Carboplatin is dosed to a target exposure: <code>dose = AUC × (GFR + 25)</code>. At AUC 5 the dose is <code>5(GFR + 25)</code>. Overdosing by more than a fraction <em>t</em> means</p>
+<p><span class="math display">\[5(\text{eGFR}+25) &gt; (1+t)\cdot 5(\text{mGFR}+25)\]</span></p>
+<p>so the right-hand constant is <code>5(1+t)</code>: <strong>5.5</strong> at 10 %, <strong>5.75</strong> at 15 %, <strong>6</strong> at 20 %. The mirror-image constants <code>5(1−t)</code> give underdose. That is the whole of <code>carbo_class()</code> and <code>carbo_over_thr()</code> — the apparently magic 6 and 4 are just ±20 %.</p>
+<p><strong>C4 · The discordance index.</strong> <code>(eGFRcr-cys − Cockcroft-Gault) / Cockcroft-Gault × 100</code>. Cystatin C is not raised by muscle mass, so in a wasted patient creatinine stays deceptively low and Cockcroft-Gault reads high, while cystatin pulls the combined equation down. A <strong>negative</strong> index therefore flags “Cockcroft-Gault is flattering this kidney”. Because it is a ratio of two GFRs on the same scale, the BSA factor cancels — indexed and absolute versions agree to within 0.5 points here (rounding only).</p>
+<p><strong>C5 · Why the index is more discriminating for some equations.</strong> Cockcroft-Gault is the index’s own denominator, so the CG panel is partly self-referential and shows the steepest gradient (78.5 % → 1.2 %). The CKD-EPI Cr 2021 panel is a genuinely independent test and is much flatter (33 % → 15 %). Both are shown; only the second is independent evidence.</p>
+<p><strong>C6 · LOESS and the clipping.</strong> The outcome is binary per patient (overdosed or not). LOESS takes a locally weighted average of those 0/1 values in a sliding window (<code>span = 0.9</code>), which estimates the <em>probability</em> of overdose as a smooth function of the index. It is unconstrained, so where data are sparse it can return values above 100 % or below 0 % — the raw Cockcroft-Gault fit reached ~105 %. The drawn curve and band are therefore clipped to [0, 100]. The fit is not modified, so a curve lying flat on 0 % at the far right is at the edge of the data, not a genuine plateau.</p>
+<p><strong>C7 · The dual axis in Figure 3.</strong> Two quantities with different units share one panel. The overdose curve owns the left axis (0–100 %). The bars are drawn as <code>count / CNT_MAX × 100</code> so they occupy the same 0–100 range, and the right axis inverts exactly that transform to relabel them as counts (or as % of cohort). Bar <em>heights are identical</em> in both variants — only the right-hand labelling changes. The right axis and the bars share a colour so the mapping needs no legend.</p>
+<p><strong>C8 · Exact binomial CIs.</strong> Figure 4’s smallest cell is 113 patients (Frail) with ~10 events. Normal-approximation intervals are unreliable that sparse and can run below zero, so the Clopper-Pearson exact interval is used instead. Overlapping intervals across groups are the reason the frailty and cachexia contrasts are reported as null.</p>
+<p><strong>C9 · Why the −10 % line.</strong> A single fixed reference at −10 % replaces the old zero line and cohort-median line. Zero is not the clinically interesting point — it is where two <em>estimates</em> agree, which says nothing about dosing. −10 % sits where the overdose curve begins to climb steeply, so it reads as a candidate flag threshold rather than a statistical artefact.</p>
 
 
 </section>
