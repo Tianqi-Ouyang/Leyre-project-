@@ -187,10 +187,13 @@ window.Quarto = {
 <section id="overview" class="level2">
 <h2 class="anchored" data-anchor-id="overview">Overview</h2>
 <p>A sub-analysis of the dose project using the <strong>OncoGFR 1200</strong> cohort, which uniquely includes a <strong>measured GFR (mGFR, ⁵¹Cr-EDTA plasma clearance)</strong> as the gold standard.</p>
-<p>The analysis asks: <em>if chemotherapy were dosed from each estimated-GFR (eGFR) equation instead of measured GFR, how often would patients be over- or under-dosed?</em> Results are presented as <strong>heatmaps</strong> across equations and drugs, on both <strong>indexed</strong> (mL/min/1.73 m²) and <strong>non-indexed</strong> (absolute mL/min) GFR scales.</p>
+<p>The analysis asks: <em>if chemotherapy were dosed from each estimated-GFR (eGFR) equation instead of measured GFR, how often would patients be over- or under-dosed?</em> Every comparison is run on both the <strong>indexed</strong> (mL/min/1.73 m²) and <strong>non-indexed</strong> (absolute mL/min) GFR scale, with measured GFR as the reference throughout.</p>
+<p>Two views of that question:</p>
 <ul>
-<li><a href="./qmd/dosing_heatmap.html"><strong>Dosing Heatmaps →</strong></a></li>
-<li><a href="./qmd/grant.html"><strong>Grant figures →</strong></a> — carboplatin overdose risk vs the eGFR<sub>cr-cys</sub> / Cockcroft-Gault discordance index</li>
+<li><p><strong>Dosing Heatmaps</strong> — the full exploratory grid: every equation × drug × subgroup, as heatmaps, plus LOESS sets against several kidney-function contrasts.</p></li>
+<li><p><strong>Grant figures</strong> — a focused cut for the grant. Carboplatin only, plotted against the eGFR<sub>cr-cys</sub> / Cockcroft-Gault discordance index, with the cohort distribution and an overdose-threshold breakdown by frailty and cachexia.</p></li>
+<li><p><a href="./qmd/dosing_heatmap.html"><strong>Dosing Heatmaps →</strong></a></p></li>
+<li><p><a href="./qmd/grant.html"><strong>Grant figures →</strong></a> — carboplatin overdose risk vs the eGFR<sub>cr-cys</sub> / Cockcroft-Gault discordance index</p></li>
 </ul>
 <section id="egfr-equations-compared-reference-measured-gfr" class="level3">
 <h3 class="anchored" data-anchor-id="egfr-equations-compared-reference-measured-gfr">eGFR equations compared (reference = measured GFR)</h3>
@@ -198,7 +201,8 @@ window.Quarto = {
 </section>
 <section id="drugs" class="level3">
 <h3 class="anchored" data-anchor-id="drugs">Drugs</h3>
-<p>Carboplatin (Calvert, ±15 % and ±20 % margins) · Cisplatin · Methotrexate · Melphalan</p>
+<p>Carboplatin (Calvert AUC 5) · Cisplatin · Methotrexate · Melphalan</p>
+<p>Carboplatin overdose is defined against a tolerance band: <strong>±15 % and ±20 %</strong> on the Dosing Heatmaps page, and <strong>≥10 %, ≥15 % and ≥20 %</strong> on the Grant page.</p>
 </section>
 </section>
 <section id="appendix-variable-codebook-logic-and-concepts" class="level2">
