@@ -107,6 +107,26 @@ dat <- raw %>%
     egfr_pctdiff_cg = (CKDEPIcrcys21non_index - CGnon_index) / CGnon_index * 100
   )
 
+# --- Subgroups for the frailty / cachexia figure ----------------------------
+# Fried frailty class (separate file; the key is misspelled 'protocal'); 592 of
+# 1200 have it. The file ships no codebook — 0/1/2 are read as the standard Fried
+# phenotype ordering (robust / pre-frail / frail), which matches the observed
+# 165 / 314 / 113 split. Confirm before publishing.
+.fr <- suppressWarnings(readxl::read_excel("Data/Frailty data to MGH.xlsx"))
+dat$fried_grp <- factor(.fr$fried_classification[match(dat$protocol, .fr$protocal)],
+                        levels = c(0, 1, 2),
+                        labels = c("Non-frail", "Pre-frail", "Frail"))
+
+# Nutrition markers (separate file; key = 'Protocol Number'); 689 of 1200.
+# Cachexia 0 = No, 1 = Yes. ASG-PPP / PG-SGA global rating coded 1/2.
+.nut <- suppressWarnings(readxl::read_excel("Data/Nutrition data.xlsx"))
+names(.nut) <- trimws(names(.nut))
+.nk <- match(dat$protocol, .nut$`Protocol Number`)
+dat$cachexia_grp <- factor(.nut$Cachexia[.nk], levels = c(0, 1),
+                           labels = c("No cachexia", "Cachexia"))
+dat$asgppp_grp   <- factor(.nut$`ASG-PPP`[.nk], levels = c(1, 2),
+                           labels = c("ASG-PPP 1", "ASG-PPP 2"))
+
 # --- Equation registry: the 8 dosing equations, same as the heatmap page ----
 # Reference = measured GFR. The creatinine CKD-EPI column is the 2021 (race-free)
 # equation; the hyphen in "EKFCcrcysnon-index" is intentional.
@@ -156,6 +176,29 @@ carbo_index    <- build_carbo_long("index")
 # [-50, 40] holds 98.5 % of patients and keeps the smooth off sparse tails.
 PCTD_CG_XLAB <- "eGFR % difference  [(CKD-EPI Cr-Cys 2021 − Cockcroft-Gault) / Cockcroft-Gault, %]"
 PCTD_CG_XLIM <- c(-50, 40)
+# Ticks every 10 percentage points. The set spans the full data range (-52 to
+# +53) so the unclipped distribution plots are ticked end to end; Figures 1 and 3
+# are clipped to PCTD_CG_XLIM, which simply drops the breaks outside it.
+PCTD_CG_BREAKS <- seq(-60, 60, 10)
+# The single reference marker on every panel: a black dashed line at -10 %.
+REF_LINE <- -10
+
+# Shared x-axis scale + tick styling, so every figure on this page lines up.
+pctd_x <- function() {
+  list(
+    ggplot2::scale_x_continuous(
+      breaks = PCTD_CG_BREAKS,
+      labels = paste0(PCTD_CG_BREAKS, "%"),
+      minor_breaks = NULL),
+    ggplot2::theme(
+      axis.ticks.x        = ggplot2::element_line(colour = "black", linewidth = 0.4),
+      axis.ticks.length.x = grid::unit(4, "pt"),
+      panel.grid.minor.x  = ggplot2::element_blank()))
+}
+ref_vline <- function() {
+  ggplot2::geom_vline(xintercept = REF_LINE, linetype = "dashed",
+                      colour = "black", linewidth = 0.5)
+}
 
 # Carboplatin red — the same hue as the "Carboplatin (±20%)" line in the 5-drug panels.
 CARBO_RED <- "#F8766D"
@@ -185,11 +228,11 @@ grant_loess <- function(cl, eq, direction = "Overdose") {
                      hi  = clip(pr$fit + 1.96 * pr$se.fit))
 
   ggplot2::ggplot(band, ggplot2::aes(x)) +
-    ggplot2::geom_vline(xintercept = 0, linetype = "dashed",
-                        colour = "grey55", linewidth = 0.4) +
+    ref_vline() +
     ggplot2::geom_ribbon(ggplot2::aes(ymin = lo, ymax = hi),
                          fill = CARBO_RED, alpha = 0.15) +
     ggplot2::geom_line(ggplot2::aes(y = fit), colour = CARBO_RED, linewidth = 1.0) +
+    pctd_x() +
     ggplot2::coord_cartesian(xlim = PCTD_CG_XLIM, ylim = c(0, 100)) +
     ggplot2::labs(x = PCTD_CG_XLAB, y = paste0("% ", tolower(direction), "d"),
                   title = ttl,
@@ -204,7 +247,8 @@ grant_loess <- function(cl, eq, direction = "Overdose") {
 # Figure 1 — Carboplatin (±20 %) overdosing vs the discordance index
 
 One line per panel: **carboplatin, ±20 % band, overdose only**. Shaded band = LOESS 95 % CI.
-The dashed vertical line marks perfect agreement between eGFR~cr-cys~ and Cockcroft-Gault.
+The x-axis is ticked every **10 percentage points**; the black dashed vertical line marks
+**−10 %**.
 
 Read the panels left-to-right: as the discordance index becomes **more negative** — cystatin
 pulling the estimate below Cockcroft-Gault — the risk of carboplatin overdose rises steeply
@@ -293,7 +337,7 @@ stratum_tbl %>%
 
 How the cohort actually falls along the x-axis of Figure 1. Left panel: **count**
 per 5-percentage-point bin. Right panel: the same as **% of the cohort**.
-The dashed line is perfect agreement (0 %); the solid line is the cohort median.
+The black dashed line marks **−10 %**.
 
 ```{r}
 #| label: grant-hist-stats
@@ -339,10 +383,8 @@ hist_base <- function(yaxis = c("count", "percent")) {
                    else ggplot2::after_stat(count) / n_tot * 100),
       binwidth = BINW, boundary = 0,
       fill = CARBO_RED, colour = "white", linewidth = 0.3, alpha = 0.85) +
-    ggplot2::geom_vline(xintercept = 0, linetype = "dashed",
-                        colour = "grey35", linewidth = 0.5) +
-    ggplot2::geom_vline(xintercept = q[2], colour = "grey20", linewidth = 0.5) +
-    ggplot2::scale_x_continuous(breaks = seq(-60, 60, 10)) +
+    ref_vline() +
+    pctd_x() +
     ggplot2::labs(
       x = PCTD_CG_XLAB,
       y = if (yaxis == "count") "Number of participants" else "% of cohort",
@@ -360,6 +402,214 @@ hist_base <- function(yaxis = c("count", "percent")) {
 
 emit_plots(list(hist_base("count"), hist_base("percent")),
            "grant_pctdiffcg_distribution")
+```
+
+# Figure 3 — Overdose curve superimposed on the distribution
+
+The Cockcroft-Gault overdose curve (**black, thick**, left axis) drawn over the cohort
+distribution (bars, right axis), so the risk gradient and the number of patients exposed to
+it are readable in one figure. Carboplatin ±20 %, absolute mL/min, measured GFR as
+reference. Black dashed line at −10 %.
+
+```{r}
+#| label: grant-overlay
+#| results: asis
+#| fig-width: 7.5
+#| fig-height: 4.4
+
+# Bin counts set the right-hand axis; round up to a clean tick interval.
+.hc     <- graphics::hist(d_hist$egfr_pctdiff_cg,
+                          breaks = seq(-60, 60, BINW), plot = FALSE)$counts
+CNT_MAX <- ceiling(max(.hc) / 25) * 25
+
+# Cockcroft-Gault overdose LOESS, clipped to [0, 100] exactly as in Figure 1.
+.d_cg <- carbo_nonindex %>%
+  dplyr::filter(equation == "CG", !is.na(cls), !is.na(egfr_pctdiff_cg)) %>%
+  dplyr::mutate(y = as.integer(cls == "Overdose") * 100)
+.fit  <- stats::loess(y ~ x, span = 0.9,
+                      data = data.frame(x = .d_cg$egfr_pctdiff_cg, y = .d_cg$y))
+.gx   <- seq(PCTD_CG_XLIM[1], PCTD_CG_XLIM[2], length.out = 200)
+.pr   <- stats::predict(.fit, newdata = data.frame(x = .gx), se = TRUE)
+.clip <- function(v) pmin(pmax(v, 0), 100)
+ov <- data.frame(x  = .gx,
+                 fit = .clip(.pr$fit),
+                 lo  = .clip(.pr$fit - 1.96 * .pr$se.fit),
+                 hi  = .clip(.pr$fit + 1.96 * .pr$se.fit))
+
+# Left axis = % overdosed (0-100). The bars are rescaled onto that range and the
+# right axis inverts the same transform, so both series share one panel.
+overlay_plot <- function(yaxis = c("count", "percent")) {
+  yaxis <- match.arg(yaxis)
+  # Bar heights are the same either way — every bin is drawn as a fraction of
+  # CNT_MAX on the 0-100 left axis. Only the right-hand axis relabels that same
+  # height, either as a raw count or as a share of the cohort.
+  sec_tr   <- if (yaxis == "count") ~ . / 100 * CNT_MAX
+              else ~ . / 100 * CNT_MAX / n_tot * 100
+  sec_name <- if (yaxis == "count") "Number of participants" else "% of cohort"
+  sec_brk  <- if (yaxis == "count") seq(0, CNT_MAX, 25) else ggplot2::waiver()
+
+  ggplot2::ggplot() +
+    ggplot2::geom_histogram(
+      data = d_hist,
+      ggplot2::aes(x = egfr_pctdiff_cg,
+                   y = ggplot2::after_stat(count) / CNT_MAX * 100),
+      binwidth = BINW, boundary = 0,
+      fill = CARBO_RED, colour = "white", linewidth = 0.3, alpha = 0.55) +
+    ref_vline() +
+    ggplot2::geom_ribbon(data = ov, ggplot2::aes(x = x, ymin = lo, ymax = hi),
+                         fill = "black", alpha = 0.12) +
+    ggplot2::geom_line(data = ov, ggplot2::aes(x = x, y = fit),
+                       colour = "black", linewidth = 1.7) +
+    pctd_x() +
+    ggplot2::scale_y_continuous(
+      name   = "% overdosed  (carboplatin ±20%, dosed by Cockcroft-Gault)",
+      breaks = seq(0, 100, 25),
+      sec.axis = ggplot2::sec_axis(sec_tr, name = sec_name, breaks = sec_brk)) +
+    ggplot2::coord_cartesian(xlim = PCTD_CG_XLIM, ylim = c(0, 100)) +
+    ggplot2::labs(
+      x = PCTD_CG_XLAB,
+      title = "Carboplatin overdose risk and cohort distribution",
+      subtitle = sprintf("Black line = %% overdosed (left axis) · bars = distribution (right axis) · N = %s",
+                         format(n_tot, big.mark = ","))) +
+    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme(
+      plot.title       = ggplot2::element_text(face = "bold", size = 11),
+      plot.subtitle    = ggplot2::element_text(size = 9, colour = "grey30"),
+      axis.title.y.left  = ggplot2::element_text(colour = "black"),
+      axis.title.y.right = ggplot2::element_text(colour = CARBO_RED),
+      axis.text.y.right  = ggplot2::element_text(colour = CARBO_RED),
+      panel.grid.minor   = ggplot2::element_blank())
+}
+
+emit_plots(list(overlay_plot("count"), overlay_plot("percent")),
+           "grant_overlay_cg_overdose_distribution")
+```
+
+# Figure 4 — Overdose risk at 10 %, 15 % and 20 %, by frailty and cachexia
+
+Dose set from **eGFR~cr-cys~ (CKD-EPI 2021)**, reference = measured GFR, absolute mL/min.
+A patient is overdosed at threshold *t* when $5(\text{eGFR}+25) > 5(1+t)(\text{mGFR}+25)$.
+Bars are exact binomial 95 % CIs. The dashed line is the whole-cohort rate at each threshold.
+
+::: {.callout-warning}
+## What this figure actually shows
+
+The drafted sentence — *"Among subset of patients who underwent frailty and cachexia
+assessments, the risk of overdosing increased"* — is **not supported** by these data, on
+either GFR scale. Read either way:
+
+- **Assessed subset vs whole cohort.** The frailty-assessed subset is *lower* than the full
+  cohort at every threshold (≥20 %: 9.0 % vs 11.8 %). The cachexia-assessed subset is
+  indistinguishable from it (12.8 % vs 11.8 %).
+- **Within the subsets.** Fried frailty shows only a weak, non-significant gradient
+  (≥15 %: 12.1 % → 17.8 % → 19.5 % across non-frail / pre-frail / frail, trend *p* = 0.08;
+  the ≥20 % row is flat). Cachexia shows nothing at all (≥20 %: 12.4 % with vs 13.0 %
+  without, *p* = 0.90).
+
+The one marker that does trend in the expected direction is **ASG-PPP (PG-SGA) rating 2 vs
+1** — ≥15 %: 22.5 % vs 17.8 %; ≥20 %: 15.6 % vs 10.6 % — but it does not reach significance
+(*p* = 0.065 at ≥20 %). All confidence intervals overlap.
+
+The headline threshold result is solid and worth keeping: dosing from eGFR~cr-cys~ instead
+of measured GFR still overdoses **31.9 %** of the cohort by ≥10 %, **19.8 %** by ≥15 % and
+**11.8 %** by ≥20 %. The frailty/cachexia amplification claim needs rewording before it
+goes in the grant.
+:::
+
+```{r}
+#| label: grant-thresholds
+#| results: asis
+#| fig-width: 8
+#| fig-height: 4.6
+THRESHOLDS <- c(0.10, 0.15, 0.20)
+THR_LABS   <- c("≥10% overdose", "≥15% overdose", "≥20% overdose")
+THR_COLS   <- c("#FDD0A2", "#FD8D3C", "#D94801")
+
+# Overdose indicator for an arbitrary threshold (Calvert AUC 5).
+carbo_over_thr <- function(gfr, mgfr, thr)
+  ifelse(is.na(gfr) | is.na(mgfr), NA_integer_,
+         as.integer(5 * (gfr + 25) > 5 * (1 + thr) * (mgfr + 25)))
+
+g_crcys <- dat$CKDEPIcrcys21non_index
+m_ref   <- dat$mGFRnon_index
+
+.domains <- list(
+  list(domain = "Whole cohort",
+       grp = factor(rep("Overall", nrow(dat)), levels = "Overall")),
+  list(domain = "Fried frailty",     grp = dat$fried_grp),
+  list(domain = "Cachexia",          grp = dat$cachexia_grp),
+  list(domain = "ASG-PPP (PG-SGA)",  grp = dat$asgppp_grp))
+
+sg <- purrr::map_dfr(.domains, function(d)
+  purrr::map_dfr(seq_along(THRESHOLDS), function(i) {
+    o  <- carbo_over_thr(g_crcys, m_ref, THRESHOLDS[i])
+    ok <- !is.na(o) & !is.na(d$grp)
+    # grp_i carries the factor's own level order; bind_rows across domains would
+    # otherwise collapse the factors to character and sort them alphabetically
+    # ("Frail, Non-frail, Pre-frail" instead of the clinical ordering).
+    tibble::tibble(domain = d$domain, grp = as.character(d$grp[ok]),
+                   grp_i = as.integer(d$grp[ok]), o = o[ok],
+                   thr = THR_LABS[i]) %>%
+      dplyr::group_by(domain, grp, grp_i, thr) %>%
+      dplyr::summarise(N = dplyr::n(), k = sum(o), .groups = "drop")
+  }))
+
+# Exact binomial CI per cell.
+.ci <- mapply(function(k, n) stats::binom.test(k, n)$conf.int, sg$k, sg$N)
+sg <- sg %>% dplyr::mutate(
+  pct = k / N * 100, lo = .ci[1, ] * 100, hi = .ci[2, ] * 100,
+  thr = factor(thr, levels = THR_LABS),
+  domain = factor(domain, levels = c("Whole cohort", "Fried frailty",
+                                     "Cachexia", "ASG-PPP (PG-SGA)")),
+  xlab = paste0(grp, "\n(N=", N, ")"))
+
+# Lock the bar order to domain, then the group's own factor level.
+.lev <- sg %>% dplyr::distinct(domain, grp_i, xlab) %>%
+  dplyr::arrange(domain, grp_i) %>% dplyr::pull(xlab)
+sg$xlab <- factor(sg$xlab, levels = .lev)
+
+# Whole-cohort reference rate per threshold, drawn as a dashed rule.
+ref <- sg %>% dplyr::filter(domain == "Whole cohort") %>%
+  dplyr::select(thr, ref = pct)
+
+p_thr <- ggplot2::ggplot(sg, ggplot2::aes(xlab, pct, fill = thr)) +
+  ggplot2::geom_hline(data = ref, ggplot2::aes(yintercept = ref),
+                      linetype = "dashed", colour = "grey45", linewidth = 0.4) +
+  ggplot2::geom_col(position = ggplot2::position_dodge(width = 0.8), width = 0.72) +
+  ggplot2::geom_errorbar(ggplot2::aes(ymin = lo, ymax = hi),
+                         position = ggplot2::position_dodge(width = 0.8),
+                         width = 0.18, linewidth = 0.4, colour = "grey25") +
+  ggplot2::facet_grid(thr ~ domain, scales = "free_x", space = "free_x") +
+  ggplot2::scale_fill_manual(values = stats::setNames(THR_COLS, THR_LABS)) +
+  ggplot2::labs(
+    x = NULL, y = "% overdosed", fill = NULL,
+    title = "Carboplatin overdose risk when dosing by eGFRcr-cys, by frailty and cachexia",
+    subtitle = "CKD-EPI 2021 cr-cys vs measured GFR · absolute mL/min · exact binomial 95% CI\nDashed rule = whole-cohort rate at that threshold") +
+  ggplot2::theme_minimal(base_size = 10) +
+  ggplot2::theme(
+    legend.position = "none",
+    plot.title      = ggplot2::element_text(face = "bold", size = 11),
+    plot.subtitle   = ggplot2::element_text(size = 8.5, colour = "grey30"),
+    strip.text      = ggplot2::element_text(face = "bold", size = 9),
+    panel.grid.major.x = ggplot2::element_blank(),
+    axis.text.x     = ggplot2::element_text(size = 8))
+
+emit_plots(list(p_thr), "grant_crcys_overdose_thresholds_frailty_cachexia")
+```
+
+```{r}
+#| label: grant-thresholds-table
+sg %>%
+  dplyr::arrange(domain, grp_i, thr) %>%
+  dplyr::transmute(Domain = domain, Group = grp, N,
+                   Threshold = thr,
+                   `% overdosed (95% CI)` =
+                     sprintf("%.1f%% (%.1f–%.1f)", pct, lo, hi)) %>%
+  tidyr::pivot_wider(names_from = Threshold,
+                     values_from = `% overdosed (95% CI)`) %>%
+  flextable::flextable() %>%
+  flextable::bold(part = "header") %>%
+  flextable::autofit()
 ```
 
 # Notes
