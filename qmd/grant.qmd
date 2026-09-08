@@ -1,0 +1,382 @@
+---
+title: "Grant Figures — Carboplatin Overdosing vs eGFRcr-cys / Cockcroft-Gault Discordance"
+author: "Tianqi Ouyang"
+execute:
+  eval: true
+  echo: true
+  warning: false
+  message: false
+format:
+  html:
+    fig-dpi: 96
+    fig-format: png
+    code-fold: true
+---
+
+# Overview
+
+A focused, grant-ready cut of the OncoGFR 1200 analysis. Two figures:
+
+1. **Figure 1** — the probability that **carboplatin (Calvert AUC 5, ±20 % band)** is
+   **overdosed** relative to measured GFR, as a smooth function of the eGFR discordance
+   index. One line only (red), one panel per eGFR dosing equation.
+2. **Figure 2** — how the **1,200 participants are distributed** across that same
+   discordance index.
+
+## The x-axis (Jiaxuan definition)
+
+$$
+\text{eGFR \% difference} \;=\; \frac{\text{eGFR}_{\text{cr-cys}} - \text{CrCl}_{\text{Cockcroft-Gault}}}{\text{CrCl}_{\text{Cockcroft-Gault}}} \times 100
+$$
+
+Both terms are on the **absolute mL/min scale (actual body surface area, *not* indexed to
+1.73 m²)**, i.e. `CKDEPIcrcys21non_index` and `CGnon_index`. eGFR~cr-cys~ is the
+**CKD-EPI 2021 creatinine–cystatin C** equation.
+
+**Negative** = cystatin-informed eGFR reads *below* Cockcroft-Gault, i.e. Cockcroft-Gault
+is flattering the kidney → the patient is at risk of receiving too much drug.
+**Positive** = the reverse.
+
+## The y-axis
+
+Carboplatin is dosed by the Calvert formula at AUC 5. A patient is **overdosed** when the
+dose computed from the estimating equation exceeds the dose that measured GFR
+(⁵¹Cr-EDTA) would have given by more than **20 %**:
+
+$$5\,(\text{eGFR} + 25) \;>\; 6\,(\text{mGFR} + 25)$$
+
+Measured GFR is the gold standard throughout. Each panel title names the equation used to
+*pick the dose*; the x-axis discordance index is the same in every panel.
+
+# Setup and data
+
+```{r}
+#| label: grant-setup
+# Force UTF-8 so unicode (mL/min/1.73m², ±, ≥) renders correctly.
+invisible(Sys.setlocale("LC_ALL", "en_US.UTF-8"))
+
+.need <- c("readxl", "dplyr", "tidyr", "purrr", "tibble", "ggplot2", "flextable", "officer", "rvg")
+.miss <- setdiff(.need, rownames(installed.packages()))
+if (length(.miss)) install.packages(.miss, repos = "https://cloud.r-project.org")
+
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(tibble)
+library(flextable)
+library(ggplot2)
+
+# Editable PowerPoint copies of every panel, same convention as the heatmap page.
+ppt_dir <- "docs/ppt"
+dir.create(ppt_dir, recursive = TRUE, showWarnings = FALSE)
+ppt_dir <- normalizePath(ppt_dir, mustWork = TRUE)
+
+# Render a list of ggplots inline AND write them to an editable .pptx (one slide
+# per plot) under docs/ppt/, then print a Markdown download link. Must be called
+# inside a `results: asis` chunk. Editable vector via rvg::dml; raster fallback.
+emit_plots <- function(plots, fname,
+                       label = "⬇️ Download these panels as PowerPoint (editable)") {
+  for (p in plots) print(p)
+  loc <- officer::ph_location(left = 0.5, top = 1.2, width = 9, height = 5.14)  # 7:4
+  doc <- officer::read_pptx()
+  for (p in plots) {
+    doc <- officer::add_slide(doc, layout = "Title and Content", master = "Office Theme")
+    gr  <- tryCatch(rvg::dml(ggobj = p), error = function(e) NULL)
+    doc <- officer::ph_with(doc, if (is.null(gr)) p else gr, location = loc)
+  }
+  print(doc, target = file.path(ppt_dir, paste0(fname, ".pptx")))
+  cat(sprintf("\n\n[%s](../ppt/%s.pptx)\n\n", label, fname))
+}
+```
+
+```{r}
+#| label: grant-data
+raw <- suppressWarnings(
+  readxl::read_excel("Data/OncoGFR1200_MGH_chemo_CJASN.xlsx")
+)
+
+dat <- raw %>%
+  dplyr::select(-dplyr::any_of(c("...70", "...75"))) %>%
+  dplyr::mutate(
+    # --- x-axis: Jiaxuan eGFR % difference ---------------------------------
+    # (eGFRcr-cys − Cockcroft-Gault) / Cockcroft-Gault × 100.
+    # BOTH on the absolute mL/min scale (actual BSA, non-indexed) — the
+    # `*non_index` columns. Verified: non_index = index × BSA/1.73.
+    # eGFRcr-cys = CKD-EPI 2021 creatinine–cystatin C.
+    egfr_pctdiff_cg = (CKDEPIcrcys21non_index - CGnon_index) / CGnon_index * 100
+  )
+
+# --- Equation registry: the 8 dosing equations, same as the heatmap page ----
+# Reference = measured GFR. The creatinine CKD-EPI column is the 2021 (race-free)
+# equation; the hyphen in "EKFCcrcysnon-index" is intentional.
+reg <- tibble::tribble(
+  ~equation,       ~type,        ~label,             ~index_col,           ~nonindex_col,
+  "CKDEPIcr21",    "eGFRcr",     "CKD-EPI 2021",     "CKDEPIcr21index",    "CKDEPIcr21non_index",
+  "EKFCcr",        "eGFRcr",     "EKFC 2021",        "EKFCcrindex",        "EKFCcrnon_index",
+  "CKDEPIcys",     "eGFRcys",    "CKD-EPI 2012",     "CKDEPIcysindex",     "CKDEPIcysnon_index",
+  "EKFCcys",       "eGFRcys",    "EKFC 2023",        "EKFCcysindex",       "EKFCcysnon_index",
+  "CKDEPIcrcys21", "eGFRcr-cys", "CKD-EPI 2021",     "CKDEPIcrcys21index", "CKDEPIcrcys21non_index",
+  "EKFCcrcys",     "eGFRcr-cys", "EKFC 2023",        "EKFCcrcysindex",     "EKFCcrcysnon-index",
+  "CG",            "ClCr",       "Cockcroft-Gault",  "CGindex",            "CGnon_index",
+  "CKDEPI4mark",   "Panel",      "CKD-EPI 4-marker", "CKDEPI4mark",        "CKDEPI4marknon_index"
+)
+MGFR <- c(index = "mGFRindex", nonindex = "mGFRnon_index")
+
+# Carboplatin Calvert (AUC 5), ±20 % band:
+#   over  if 5*(eGFR+25) > 6*(mGFR+25)
+#   under if 5*(eGFR+25) < 4*(mGFR+25)
+carbo_class <- function(gfr, mgfr, k_hi = 6, k_lo = 4) {
+  pred <- 5 * (gfr + 25)
+  dplyr::case_when(is.na(gfr) | is.na(mgfr) ~ NA_character_,
+                   pred > k_hi * (mgfr + 25) ~ "Overdose",
+                   pred < k_lo * (mgfr + 25) ~ "Underdose", TRUE ~ "Concordant")
+}
+
+# Patient × equation table carrying the discordance index, for one GFR scale.
+build_carbo_long <- function(scale = c("nonindex", "index"), data = dat) {
+  scale  <- match.arg(scale)
+  mgfr   <- data[[MGFR[[scale]]]]
+  col_of <- function(eq) {
+    r <- reg[reg$equation == eq, ]
+    if (scale == "index") r$index_col[[1]] else r$nonindex_col[[1]]
+  }
+  purrr::map_dfr(reg$equation, function(eq) {
+    tibble::tibble(
+      equation        = eq,
+      egfr_pctdiff_cg = data$egfr_pctdiff_cg,
+      cls             = carbo_class(data[[col_of(eq)]], mgfr)
+    )
+  })
+}
+carbo_nonindex <- build_carbo_long("nonindex")
+carbo_index    <- build_carbo_long("index")
+
+# X-axis label and window. The index runs ~ -52 % to +53 % in this cohort;
+# [-50, 40] holds 98.5 % of patients and keeps the smooth off sparse tails.
+PCTD_CG_XLAB <- "eGFR % difference  [(CKD-EPI Cr-Cys 2021 − Cockcroft-Gault) / Cockcroft-Gault, %]"
+PCTD_CG_XLIM <- c(-50, 40)
+
+# Carboplatin red — the same hue as the "Carboplatin (±20%)" line in the 5-drug panels.
+CARBO_RED <- "#F8766D"
+
+# One panel per equation: a single LOESS smooth of P(overdose) for carboplatin
+# ±20 %, as a function of the discordance index. Binary 0/1 → % via the smooth.
+grant_loess <- function(cl, eq, direction = "Overdose") {
+  r   <- reg[reg$equation == eq, ]
+  ttl <- paste0(r$type, " · ", r$label)
+  d <- cl %>%
+    dplyr::filter(equation == eq, !is.na(cls), !is.na(egfr_pctdiff_cg)) %>%
+    dplyr::mutate(y = as.integer(cls == direction) * 100)
+
+  # Fit the LOESS explicitly rather than letting geom_smooth do it, so the drawn
+  # curve and its band can be clamped to [0, 100]. An unconstrained smooth of a
+  # 0/1 outcome overshoots at the sparse ends (the Cockcroft-Gault panel reaches
+  # ~105 % on the left), which would be indefensible in a grant figure. The fit
+  # itself is untouched — only what is drawn is clipped to the possible range.
+  fit  <- stats::loess(y ~ x, span = 0.9,
+                       data = data.frame(x = d$egfr_pctdiff_cg, y = d$y))
+  gx   <- seq(PCTD_CG_XLIM[1], PCTD_CG_XLIM[2], length.out = 200)
+  pr   <- stats::predict(fit, newdata = data.frame(x = gx), se = TRUE)
+  clip <- function(v) pmin(pmax(v, 0), 100)
+  band <- data.frame(x   = gx,
+                     fit = clip(pr$fit),
+                     lo  = clip(pr$fit - 1.96 * pr$se.fit),
+                     hi  = clip(pr$fit + 1.96 * pr$se.fit))
+
+  ggplot2::ggplot(band, ggplot2::aes(x)) +
+    ggplot2::geom_vline(xintercept = 0, linetype = "dashed",
+                        colour = "grey55", linewidth = 0.4) +
+    ggplot2::geom_ribbon(ggplot2::aes(ymin = lo, ymax = hi),
+                         fill = CARBO_RED, alpha = 0.15) +
+    ggplot2::geom_line(ggplot2::aes(y = fit), colour = CARBO_RED, linewidth = 1.0) +
+    ggplot2::coord_cartesian(xlim = PCTD_CG_XLIM, ylim = c(0, 100)) +
+    ggplot2::labs(x = PCTD_CG_XLAB, y = paste0("% ", tolower(direction), "d"),
+                  title = ttl,
+                  subtitle = "Carboplatin (±20%)") +
+    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme(
+      plot.title    = ggplot2::element_text(face = "bold", size = 11),
+      plot.subtitle = ggplot2::element_text(colour = CARBO_RED, face = "bold", size = 10))
+}
+```
+
+# Figure 1 — Carboplatin (±20 %) overdosing vs the discordance index
+
+One line per panel: **carboplatin, ±20 % band, overdose only**. Shaded band = LOESS 95 % CI.
+The dashed vertical line marks perfect agreement between eGFR~cr-cys~ and Cockcroft-Gault.
+
+Read the panels left-to-right: as the discordance index becomes **more negative** — cystatin
+pulling the estimate below Cockcroft-Gault — the risk of carboplatin overdose rises steeply
+for the creatinine-only equations.
+
+::: {.callout-note}
+The **eGFRcr-cys · CKD-EPI 2021** and **ClCr · Cockcroft-Gault** panels are partly
+self-referential: those two equations *define* the x-axis. Interpret them as a description
+of the index itself rather than as independent evidence.
+:::
+
+## Absolute mL/min (actual BSA) — primary
+
+This is the scale the Calvert formula requires, and it matches the x-axis definition.
+
+```{r}
+#| label: grant-carbo-nix-over
+#| results: asis
+#| fig-width: 7
+#| fig-height: 4
+emit_plots(lapply(reg$equation, function(eq) grant_loess(carbo_nonindex, eq, "Overdose")),
+           "grant_carbo_pctdiffcg_nonindexed_overdose")
+```
+
+## Indexed (mL/min/1.73 m²) — secondary
+
+Same figure with the dosing classification computed on the indexed GFR scale. The x-axis is
+unchanged (still absolute mL/min, as specified).
+
+```{r}
+#| label: grant-carbo-idx-over
+#| results: asis
+#| fig-width: 7
+#| fig-height: 4
+emit_plots(lapply(reg$equation, function(eq) grant_loess(carbo_index, eq, "Overdose")),
+           "grant_carbo_pctdiffcg_indexed_overdose")
+```
+
+## The same curve as numbers
+
+The LOESS panels above in citable form: the observed carboplatin (±20 %) overdose rate
+within bands of the discordance index, for the two creatinine-based equations a clinic
+would actually dose from. Absolute mL/min scale, measured GFR as reference.
+
+```{r}
+#| label: grant-stratum-table
+BANDS <- c(-Inf, -30, -20, -10, 0, 10, Inf)
+BAND_LABS <- c("< −30 %", "−30 to −20 %", "−20 to −10 %", "−10 to 0 %",
+               "0 to +10 %", "> +10 %")
+
+stratum_tbl <- carbo_nonindex %>%
+  dplyr::filter(equation %in% c("CG", "CKDEPIcr21"), !is.na(cls),
+                !is.na(egfr_pctdiff_cg)) %>%
+  dplyr::mutate(
+    band = cut(egfr_pctdiff_cg, BANDS, labels = BAND_LABS, right = FALSE),
+    eqn  = factor(equation, levels = c("CG", "CKDEPIcr21"),
+                  labels = c("Cockcroft-Gault", "CKD-EPI Cr 2021"))) %>%
+  dplyr::group_by(eqn, band) %>%
+  dplyr::summarise(N = dplyr::n(),
+                   over = sum(cls == "Overdose"), .groups = "drop") %>%
+  dplyr::mutate(pct = sprintf("%.1f%%", over / N * 100)) %>%
+  dplyr::select(eqn, band, N, over, pct) %>%
+  tidyr::pivot_wider(names_from = eqn, values_from = c(over, pct),
+                     names_glue = "{eqn}_{.value}") %>%
+  # pivot_wider orders columns by VALUE (both n's, then both %'s). Regroup them
+  # by EQUATION so the "Dosed by ..." header spanners sit over the right pairs.
+  dplyr::select(band, N,
+                `Cockcroft-Gault_over`, `Cockcroft-Gault_pct`,
+                `CKD-EPI Cr 2021_over`, `CKD-EPI Cr 2021_pct`) %>%
+  dplyr::rename(`eGFR % difference` = band)
+
+stratum_tbl %>%
+  flextable::flextable() %>%
+  flextable::set_header_labels(
+    `Cockcroft-Gault_over` = "n overdosed", `Cockcroft-Gault_pct` = "% overdosed",
+    `CKD-EPI Cr 2021_over` = "n overdosed", `CKD-EPI Cr 2021_pct` = "% overdosed") %>%
+  flextable::add_header_row(
+    values = c("", "", "Dosed by Cockcroft-Gault", "Dosed by CKD-EPI Cr 2021"),
+    colwidths = c(1, 1, 2, 2)) %>%
+  flextable::align(i = 1, part = "header", align = "center") %>%
+  flextable::bold(part = "header") %>%
+  flextable::autofit()
+```
+
+# Figure 2 — Distribution of the discordance index across the 1,200 participants
+
+How the cohort actually falls along the x-axis of Figure 1. Left panel: **count**
+per 5-percentage-point bin. Right panel: the same as **% of the cohort**.
+The dashed line is perfect agreement (0 %); the solid line is the cohort median.
+
+```{r}
+#| label: grant-hist-stats
+d_hist <- dat %>% dplyr::filter(!is.na(egfr_pctdiff_cg))
+n_tot  <- nrow(d_hist)
+q      <- quantile(d_hist$egfr_pctdiff_cg, c(0.25, 0.5, 0.75))
+
+tibble::tibble(
+  Statistic = c("N with a value", "Mean (SD)", "Median (IQR)", "Range",
+                "Below 0 % (cystatin reads lower)", "At or above 0 %",
+                "Below −20 %", "Below −30 %"),
+  Value = c(
+    format(n_tot, big.mark = ","),
+    sprintf("%.1f%% (%.1f)", mean(d_hist$egfr_pctdiff_cg), sd(d_hist$egfr_pctdiff_cg)),
+    sprintf("%.1f%% (%.1f to %.1f)", q[2], q[1], q[3]),
+    sprintf("%.1f%% to %.1f%%", min(d_hist$egfr_pctdiff_cg), max(d_hist$egfr_pctdiff_cg)),
+    sprintf("%d (%.1f%%)", sum(d_hist$egfr_pctdiff_cg <  0),
+            mean(d_hist$egfr_pctdiff_cg <  0) * 100),
+    sprintf("%d (%.1f%%)", sum(d_hist$egfr_pctdiff_cg >= 0),
+            mean(d_hist$egfr_pctdiff_cg >= 0) * 100),
+    sprintf("%d (%.1f%%)", sum(d_hist$egfr_pctdiff_cg < -20),
+            mean(d_hist$egfr_pctdiff_cg < -20) * 100),
+    sprintf("%d (%.1f%%)", sum(d_hist$egfr_pctdiff_cg < -30),
+            mean(d_hist$egfr_pctdiff_cg < -30) * 100))
+) %>%
+  flextable::flextable() %>%
+  flextable::autofit() %>%
+  flextable::bold(part = "header")
+```
+
+```{r}
+#| label: grant-hist
+#| results: asis
+#| fig-width: 7
+#| fig-height: 4
+BINW <- 5   # percentage points per bin
+
+hist_base <- function(yaxis = c("count", "percent")) {
+  yaxis <- match.arg(yaxis)
+  ggplot2::ggplot(d_hist, ggplot2::aes(x = egfr_pctdiff_cg)) +
+    ggplot2::geom_histogram(
+      ggplot2::aes(y = if (yaxis == "count") ggplot2::after_stat(count)
+                   else ggplot2::after_stat(count) / n_tot * 100),
+      binwidth = BINW, boundary = 0,
+      fill = CARBO_RED, colour = "white", linewidth = 0.3, alpha = 0.85) +
+    ggplot2::geom_vline(xintercept = 0, linetype = "dashed",
+                        colour = "grey35", linewidth = 0.5) +
+    ggplot2::geom_vline(xintercept = q[2], colour = "grey20", linewidth = 0.5) +
+    ggplot2::scale_x_continuous(breaks = seq(-60, 60, 10)) +
+    ggplot2::labs(
+      x = PCTD_CG_XLAB,
+      y = if (yaxis == "count") "Number of participants" else "% of cohort",
+      title = if (yaxis == "count")
+        "Distribution of the eGFR % difference — count"
+      else "Distribution of the eGFR % difference — % of cohort",
+      subtitle = sprintf("OncoGFR 1200, N = %s · median %.1f%% (IQR %.1f to %.1f) · %d-point bins",
+                         format(n_tot, big.mark = ","), q[2], q[1], q[3], BINW)) +
+    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme(
+      plot.title    = ggplot2::element_text(face = "bold", size = 11),
+      plot.subtitle = ggplot2::element_text(size = 9, colour = "grey30"),
+      panel.grid.minor = ggplot2::element_blank())
+}
+
+emit_plots(list(hist_base("count"), hist_base("percent")),
+           "grant_pctdiffcg_distribution")
+```
+
+# Notes
+
+- **Cohort**: OncoGFR 1200 — 1,200 patients with a measured GFR (⁵¹Cr-EDTA plasma
+  clearance) as the reference standard. The discordance index is available for all 1,200.
+- **Equation choices**: eGFR~cr-cys~ on the x-axis is CKD-EPI 2021 creatinine–cystatin C.
+  Swap `CKDEPIcrcys21non_index` for `EKFCcrcysnon-index` in the `grant-data` chunk to use
+  EKFC 2023 instead.
+- **Scale**: the x-axis uses absolute mL/min (actual BSA) for both terms, as specified.
+  Because the index is a *ratio* of two GFRs on the same scale, the BSA/1.73 factor cancels
+  algebraically, so an indexed version of the x-axis would carry the same meaning; in the
+  stored columns the two agree to within 0.52 percentage points (rounding only, r = 0.99999).
+- **LOESS**: `span = 0.9`, binary over/not-over outcome smoothed on the 0/100 scale; the
+  shaded band is the smoother's 95 % CI (fit ± 1.96 SE), not a binomial CI. The curve and
+  band are **clipped to [0, 100]** for display — an unconstrained LOESS of a 0/1 outcome
+  overshoots where data are sparse. The underlying fit is not modified, so a curve that sits
+  flat against 0 % or 100 % at the extreme ends is at the edge of the data, not a plateau.
+- Full equation-by-drug heatmaps and the other LOESS sets live on the
+  [Dosing Heatmaps](dosing_heatmap.qmd) page.
