@@ -130,14 +130,14 @@
     "href": "qmd/dosing_heatmap.html#indexed-gfr-mlmin1.73-m²-8",
     "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
     "section": "Indexed GFR (mL/min/1.73 m²)",
-    "text": "Indexed GFR (mL/min/1.73 m²)\n\nOverdose\n\nCode\nemit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, \"Overdose\", \"egfr_pctdiff\", PCTD_XLAB, PCTD_XLIM)), \"loessp-idx-over\")\n\n\n&lt;U+2B07&gt;&lt;U+FE0F&gt; Download these panels as PowerPoint (editable)\n\n\nUnderdose\n\nCode\nemit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, \"Underdose\", \"egfr_pctdiff\", PCTD_XLAB, PCTD_XLIM)), \"loessp-idx-under\")\n\n\n&lt;U+2B07&gt;&lt;U+FE0F&gt; Download these panels as PowerPoint (editable)"
+    "text": "Indexed GFR (mL/min/1.73 m²)\n\nOverdose\n\nCode\nemit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, \"Overdose\", \"egfr_pctdiff_cg\", PCTD_XLAB, PCTD_XLIM, pctd_axis = TRUE)), \"loessp-idx-over\")\n\n\n&lt;U+2B07&gt;&lt;U+FE0F&gt; Download these panels as PowerPoint (editable)\n\n\nOverdose — curve superimposed on the distribution\n\nCode\nemit_plots(lapply(LOESS_EQS, function(eq) overlay_plot(cl_index, eq)), \"loessp-idx-overlay\")\n\n\n&lt;U+2B07&gt;&lt;U+FE0F&gt; Download these panels as PowerPoint (editable)\n\n\nUnderdose\n\nCode\nemit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, \"Underdose\", \"egfr_pctdiff_cg\", PCTD_XLAB, PCTD_XLIM, pctd_axis = TRUE)), \"loessp-idx-under\")\n\n\n&lt;U+2B07&gt;&lt;U+FE0F&gt; Download these panels as PowerPoint (editable)"
   },
   {
     "objectID": "qmd/dosing_heatmap.html#non-indexed-gfr-absolute-mlmin-8",
     "href": "qmd/dosing_heatmap.html#non-indexed-gfr-absolute-mlmin-8",
     "title": "Chemotherapy Dosing: eGFR Equations vs Measured GFR (OncoGFR 1200)",
     "section": "Non-indexed GFR (absolute mL/min)",
-    "text": "Non-indexed GFR (absolute mL/min)\n\nOverdose\n\nCode\nemit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, \"Overdose\", \"egfr_pctdiff\", PCTD_XLAB, PCTD_XLIM)), \"loessp-nix-over\")\n\n\n&lt;U+2B07&gt;&lt;U+FE0F&gt; Download these panels as PowerPoint (editable)\n\n\nUnderdose\n\nCode\nemit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, \"Underdose\", \"egfr_pctdiff\", PCTD_XLAB, PCTD_XLIM)), \"loessp-nix-under\")\n\n\n&lt;U+2B07&gt;&lt;U+FE0F&gt; Download these panels as PowerPoint (editable)"
+    "text": "Non-indexed GFR (absolute mL/min)\n\nOverdose\n\nCode\nemit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, \"Overdose\", \"egfr_pctdiff_cg\", PCTD_XLAB, PCTD_XLIM, pctd_axis = TRUE)), \"loessp-nix-over\")\n\n\n&lt;U+2B07&gt;&lt;U+FE0F&gt; Download these panels as PowerPoint (editable)\n\n\nOverdose — curve superimposed on the distribution\n\nCode\nemit_plots(lapply(LOESS_EQS, function(eq) overlay_plot(cl_nonindex, eq)), \"loessp-nix-overlay\")\n\n\n&lt;U+2B07&gt;&lt;U+FE0F&gt; Download these panels as PowerPoint (editable)\n\n\nUnderdose\n\nCode\nemit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, \"Underdose\", \"egfr_pctdiff_cg\", PCTD_XLAB, PCTD_XLIM, pctd_axis = TRUE)), \"loessp-nix-under\")\n\n\n&lt;U+2B07&gt;&lt;U+FE0F&gt; Download these panels as PowerPoint (editable)"
   },
   {
     "objectID": "qmd/dosing_heatmap.html#indexed-gfr-mlmin1.73-m²-9",
