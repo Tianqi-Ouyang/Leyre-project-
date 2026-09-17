@@ -129,14 +129,8 @@ dat <- raw %>%
     # (mL/min/1.73 m²). Both use the index columns.
     egfr_ratio = CKDEPIcysindex / CKDEPIcr21index,
     egfr_diff  = CKDEPIcysindex - CKDEPIcr21index,
-    # % difference (Cys − Cr) relative to creatinine; scale-invariant. Kept for
-    # reference but no longer plotted: the % difference LOESS set now uses the
-    # Cockcroft-Gault index below, so it matches the Grant page.
-    egfr_pctdiff = (CKDEPIcysindex - CKDEPIcr21index) / CKDEPIcr21index * 100,
-    # Jiaxuan discordance index, identical to the Grant page:
-    # (eGFRcr-cys − Cockcroft-Gault) / Cockcroft-Gault × 100, BOTH on the absolute
-    # mL/min scale (actual BSA, non-indexed). eGFRcr-cys = CKD-EPI 2021 cr-cys.
-    egfr_pctdiff_cg = (CKDEPIcrcys21non_index - CGnon_index) / CGnon_index * 100
+    # % difference (Cys − Cr) relative to creatinine; scale-invariant.
+    egfr_pctdiff = (CKDEPIcysindex - CKDEPIcr21index) / CKDEPIcr21index * 100
   )
 
 # Body-composition subset (465 patients, matched on `protocol`). Adds a Prado
@@ -230,8 +224,7 @@ build_class_long <- function(scale = c("index", "nonindex"), data = dat) {
   }
   mgfr <- data[[MGFR[[scale]]]]
   base <- dplyr::select(data, sex, bmi_grp, met_grp, age_grp, ecog_grp, fried_grp,
-                        egfr_ratio, egfr_diff, egfr_pctdiff, egfr_pctdiff_cg,
-                        sarc_grp, muscle_z,
+                        egfr_ratio, egfr_diff, egfr_pctdiff, sarc_grp, muscle_z,
                         cachexia_grp, asgppp_grp)
   base$mgfr_x <- mgfr   # scale-appropriate measured GFR, for the mGFR-on-x LOESS set
   tier <- purrr::map_dfr(reg$equation, function(eq) {
@@ -401,14 +394,14 @@ loess_plot <- function(cl, eq, direction, xvar = "egfr_ratio",
 # X-axis for the difference LOESS set (indexed Cys − Cr, mL/min/1.73 m²).
 DIFF_XLAB <- "eGFR difference  (CKD-EPI Cys 2012 − Cr 2021, mL/min/1.73 m²)"
 DIFF_XLIM <- c(-50, 20)
-# X-axis for the % difference LOESS set — the Grant page's discordance index,
-# (CKD-EPI Cr-Cys 2021 − Cockcroft-Gault) / Cockcroft-Gault × 100, absolute mL/min.
-# Window, ticks and reference line are copied from the Grant page so the two
-# pages read identically: [-50, 40] holds 98.2 % of patients; ticks every 10
-# points; one black dashed marker at -10 %.
-PCTD_XLAB   <- "eGFR % difference  [(CKD-EPI Cr-Cys 2021 − Cockcroft-Gault) / Cockcroft-Gault, %]"
-PCTD_XLIM   <- c(-50, 40)
-PCTD_BREAKS <- seq(-60, 60, 10)   # spans the data (-52..+53); clipped panels drop the extras
+# X-axis for the % difference LOESS set ((Cys − Cr)/Cr × 100; scale-invariant).
+# Axis treatment copied from the Grant page — 10-point ticks with % labels and a
+# black dashed marker at -10 % — but the window is sized to THIS index, which sits
+# further negative than the Grant page's (median -16 %, range -69..+80):
+# [-60, 30] holds 98.3 % of patients and keeps the smooth off the sparse tails.
+PCTD_XLAB   <- "eGFR % difference  [(CKD-EPI Cys 2012 − Cr 2021) / Cr 2021, %]"
+PCTD_XLIM   <- c(-60, 30)
+PCTD_BREAKS <- seq(-80, 80, 10)   # spans the full data range; clipped panels drop the extras
 REF_LINE    <- -10
 BINW        <- 5                  # histogram bin width, percentage points
 CARBO_RED   <- "#F8766D"          # ggplot's hue for the carboplatin ±20% line
@@ -434,7 +427,7 @@ ref_vline <- function() {
 # = count). Bars are drawn as a fraction of the tallest bin (rounded up to a clean
 # 25) so both series share one panel; the right axis inverts that transform.
 # The curve is clipped to [0, 100] exactly as on the Grant page.
-overlay_plot <- function(cl, eq, xvar = "egfr_pctdiff_cg", xlab = PCTD_XLAB,
+overlay_plot <- function(cl, eq, xvar = "egfr_pctdiff", xlab = PCTD_XLAB,
                          xlim = PCTD_XLIM, drug_id = "carboplatin_b20") {
   r   <- reg[reg$equation == eq, ]
   ttl <- paste0(r$type, " · ", r$label)
@@ -991,31 +984,20 @@ emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Underdose
 
 # LOESS (% difference) — over/under-dose probability vs eGFR % difference
 
-Third LOESS set. The x-axis is the **Grant page's discordance index**:
+Third LOESS set: the x-axis is the **% difference = (eGFR_Cys − eGFR_Cr) ⁄ eGFR_Cr × 100**
+(CKD-EPI Cys 2012 vs Cr 2021). It is a ratio of two eGFRs, so it is **scale-invariant**. **Positive**
+= cystatin-eGFR above creatinine-eGFR (cystatin reads function higher). Because a higher %
+difference means cystatin reads GFR higher, **creatinine-equation overdose curves fall** as the
+% difference increases while cystatin-equation curves rise — matching the ratio version. The
+CKD-EPI Cys 2012 and Cr 2021 panels are partly self-referential (they define the x-axis).
 
-$$
-\text{eGFR \% difference} \;=\; \frac{\text{eGFR}_{\text{cr-cys}} - \text{CrCl}_{\text{Cockcroft-Gault}}}{\text{CrCl}_{\text{Cockcroft-Gault}}} \times 100
-$$
+The axis treatment is the Grant page's — **10-point ticks** and a black dashed marker at
+**−10 %** — with the window sized to this index (**[−60, 30]**, 98.3 % of patients).
 
-with both terms on the **absolute mL/min scale** (actual BSA, `CKDEPIcrcys21non_index` and
-`CGnon_index`); eGFR~cr-cys~ is CKD-EPI 2021 creatinine–cystatin C. **Negative** = the
-cystatin-informed estimate sits below Cockcroft-Gault, i.e. Cockcroft-Gault is flattering the
-kidney → overdose risk. Axis window, 10-point ticks and the black dashed **−10 %** marker are
-identical to the Grant page, so the two read side by side.
-
-Per scale: the usual 8-equation × 5-drug LOESS panels for over- and under-dose, plus a new
+Per scale: the usual 8-equation × 5-drug LOESS panels for over- and under-dose, plus an
 **overlay** set — the carboplatin (±20 %) overdose curve drawn **over the cohort distribution**
-(black line, left axis; bars, right axis), one panel per equation. The **Cockcroft-Gault**
-overlay is the Grant page's Figure 3; the other seven are new. The Cr-Cys 2021 and
-Cockcroft-Gault panels are partly self-referential — they define the x-axis.
-
-::: {.callout-note collapse="true"}
-## Earlier definition of this section
-Before 2026-09-14 this set used **(CKD-EPI Cys 2012 − Cr 2021) / Cr 2021 × 100** on the indexed
-scale. That column is still computed as `egfr_pctdiff` in the data chunk; to restore the old
-panels, pass it in place of `egfr_pctdiff_cg` below. The ratio and difference sets above are
-unchanged and still contrast cystatin vs creatinine.
-:::
+(black line, left axis; bars, right axis), one panel per equation, in the style of the Grant
+page's Figure 3.
 
 ## Indexed GFR (mL/min/1.73 m²)
 
@@ -1026,7 +1008,7 @@ unchanged and still contrast cystatin vs creatinine.
 #| results: asis
 #| fig-width: 7
 #| fig-height: 4
-emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, "Overdose", "egfr_pctdiff_cg", PCTD_XLAB, PCTD_XLIM, pctd_axis = TRUE)), "loessp-idx-over")
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, "Overdose", "egfr_pctdiff", PCTD_XLAB, PCTD_XLIM, pctd_axis = TRUE)), "loessp-idx-over")
 ```
 
 ### Overdose — curve superimposed on the distribution
@@ -1046,7 +1028,7 @@ emit_plots(lapply(LOESS_EQS, function(eq) overlay_plot(cl_index, eq)), "loessp-i
 #| results: asis
 #| fig-width: 7
 #| fig-height: 4
-emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, "Underdose", "egfr_pctdiff_cg", PCTD_XLAB, PCTD_XLIM, pctd_axis = TRUE)), "loessp-idx-under")
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, "Underdose", "egfr_pctdiff", PCTD_XLAB, PCTD_XLIM, pctd_axis = TRUE)), "loessp-idx-under")
 ```
 
 ## Non-indexed GFR (absolute mL/min)
@@ -1058,7 +1040,7 @@ emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_index, eq, "Underdose", 
 #| results: asis
 #| fig-width: 7
 #| fig-height: 4
-emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Overdose", "egfr_pctdiff_cg", PCTD_XLAB, PCTD_XLIM, pctd_axis = TRUE)), "loessp-nix-over")
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Overdose", "egfr_pctdiff", PCTD_XLAB, PCTD_XLIM, pctd_axis = TRUE)), "loessp-nix-over")
 ```
 
 ### Overdose — curve superimposed on the distribution
@@ -1078,7 +1060,7 @@ emit_plots(lapply(LOESS_EQS, function(eq) overlay_plot(cl_nonindex, eq)), "loess
 #| results: asis
 #| fig-width: 7
 #| fig-height: 4
-emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Underdose", "egfr_pctdiff_cg", PCTD_XLAB, PCTD_XLIM, pctd_axis = TRUE)), "loessp-nix-under")
+emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Underdose", "egfr_pctdiff", PCTD_XLAB, PCTD_XLIM, pctd_axis = TRUE)), "loessp-nix-under")
 ```
 
 
