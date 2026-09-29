@@ -128,10 +128,6 @@ window.Quarto = {
     <a class="nav-link" href="./qmd/dosing_heatmap.html"> 
 <span class="menu-text">Dosing Heatmaps</span></a>
   </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="./qmd/grant.html"> 
-<span class="menu-text">Grant</span></a>
-  </li>  
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
@@ -191,9 +187,9 @@ window.Quarto = {
 <p>Two views of that question:</p>
 <ul>
 <li><p><strong>Dosing Heatmaps</strong> — the full exploratory grid: every equation × drug × subgroup, as heatmaps, plus LOESS sets against several kidney-function contrasts.</p></li>
-<li><p><strong>Grant figures</strong> — a focused cut for the grant. Carboplatin only, plotted against the eGFR<sub>cr-cys</sub> / Cockcroft-Gault discordance index, with the cohort distribution and an overdose-threshold breakdown by frailty and cachexia.</p></li>
+<li><p><strong><a href="https://tianqi-ouyang.github.io/Grant-/qmd/leyre_grant.html">Grant figures</a></strong> — a focused cut for the grant: carboplatin only, plotted against the eGFR<sub>cr-cys</sub> / Cockcroft-Gault discordance index, with the cohort distribution and an overdose-threshold breakdown by frailty and cachexia. This page now lives on the separate <strong>Grant</strong> site, alongside the Sherley carboplatin figures that use the same index.</p></li>
 <li><p><a href="./qmd/dosing_heatmap.html"><strong>Dosing Heatmaps →</strong></a></p></li>
-<li><p><a href="./qmd/grant.html"><strong>Grant figures →</strong></a> — carboplatin overdose risk vs the eGFR<sub>cr-cys</sub> / Cockcroft-Gault discordance index</p></li>
+<li><p><a href="https://tianqi-ouyang.github.io/Grant-/qmd/leyre_grant.html"><strong>Grant figures →</strong></a> — carboplatin overdose risk vs the eGFR<sub>cr-cys</sub> / Cockcroft-Gault discordance index. <em>Moved to the separate Grant site on 2026-09-29; the codebook below still documents it.</em></p></li>
 </ul>
 <section id="egfr-equations-compared-reference-measured-gfr" class="level3">
 <h3 class="anchored" data-anchor-id="egfr-equations-compared-reference-measured-gfr">eGFR equations compared (reference = measured GFR)</h3>
@@ -207,7 +203,7 @@ window.Quarto = {
 </section>
 <section id="appendix-variable-codebook-logic-and-concepts" class="level2">
 <h2 class="anchored" data-anchor-id="appendix-variable-codebook-logic-and-concepts">Appendix — Variable codebook, logic and concepts</h2>
-<p>Reference for the <a href="./qmd/grant.html"><strong>Grant</strong></a> figures: every input column, derived variable, function and figure constant they use, why each exists, and what the underlying ideas mean. Figure numbers below refer to that page. Rows marked <strong>NEW</strong> were added in the most recent update (10 % axis ticks, the −10 % reference line, the overlay figure, and the threshold / frailty figure).</p>
+<p>Reference for the <a href="https://tianqi-ouyang.github.io/Grant-/qmd/leyre_grant.html"><strong>Grant</strong></a> figures — now hosted on the separate Grant site — every input column, derived variable, function and figure constant they use, why each exists, and what the underlying ideas mean. Figure numbers below refer to that page. Rows marked <strong>NEW</strong> were added in the most recent update (10 % axis ticks, the −10 % reference line, the overlay figure, and the threshold / frailty figure).</p>
 <section id="a.-source-files-and-input-columns" class="level3">
 <h3 class="anchored" data-anchor-id="a.-source-files-and-input-columns">A. Source files and input columns</h3>
 <p>Three Excel files, all gitignored — patient-level data never leaves the machine.</p>

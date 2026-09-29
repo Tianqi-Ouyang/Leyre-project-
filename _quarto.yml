@@ -4,7 +4,6 @@ project:
   render:
     - index.qmd
     - qmd/dosing_heatmap.qmd
-    - qmd/grant.qmd
 
 website:
   title: "OncoGFR: eGFR vs Measured GFR — Chemo Dosing"
@@ -14,8 +13,6 @@ website:
         text: Summary
       - href: qmd/dosing_heatmap.qmd
         text: Dosing Heatmaps
-      - href: qmd/grant.qmd
-        text: Grant
 
 format:
   html:

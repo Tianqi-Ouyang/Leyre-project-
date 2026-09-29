@@ -16,13 +16,15 @@ Two views of that question:
 
 - **Dosing Heatmaps** — the full exploratory grid: every equation × drug × subgroup, as
   heatmaps, plus LOESS sets against several kidney-function contrasts.
-- **Grant figures** — a focused cut for the grant. Carboplatin only, plotted against the
-  eGFR~cr-cys~ / Cockcroft-Gault discordance index, with the cohort distribution and an
-  overdose-threshold breakdown by frailty and cachexia.
+- **[Grant figures](https://tianqi-ouyang.github.io/Grant-/qmd/leyre_grant.html)** — a focused cut for the grant: carboplatin only, plotted
+  against the eGFR~cr-cys~ / Cockcroft-Gault discordance index, with the cohort distribution
+  and an overdose-threshold breakdown by frailty and cachexia. This page now lives on the
+  separate **Grant** site, alongside the Sherley carboplatin figures that use the same index.
 
 - [**Dosing Heatmaps →**](qmd/dosing_heatmap.qmd)
-- [**Grant figures →**](qmd/grant.qmd) — carboplatin overdose risk vs the
-  eGFR~cr-cys~ / Cockcroft-Gault discordance index
+- [**Grant figures →**](https://tianqi-ouyang.github.io/Grant-/qmd/leyre_grant.html) — carboplatin overdose risk vs the
+  eGFR~cr-cys~ / Cockcroft-Gault discordance index. *Moved to the separate Grant
+  site on 2026-09-29; the codebook below still documents it.*
 
 ### eGFR equations compared (reference = measured GFR)
 
@@ -38,7 +40,8 @@ Dosing Heatmaps page, and **≥10 %, ≥15 % and ≥20 %** on the Grant page.
 
 ## Appendix — Variable codebook, logic and concepts
 
-Reference for the [**Grant**](qmd/grant.qmd) figures: every input column, derived
+Reference for the [**Grant**](https://tianqi-ouyang.github.io/Grant-/qmd/leyre_grant.html) figures — now hosted on the separate Grant site —
+every input column, derived
 variable, function and figure constant they use, why each exists, and what the underlying
 ideas mean. Figure numbers below refer to that page. Rows marked **NEW** were added in the
 most recent update (10 % axis ticks, the −10 % reference line, the overlay figure, and the
