@@ -686,7 +686,7 @@ emit_mcg <- function(cl, version, scale, scale_label) {
 }
 ```
 
-# Overview
+# 3 Overview
 
 For every patient we compute the chemotherapy dose each **estimated-GFR (eGFR) equation** would
 prescribe and compare it to the dose that **measured GFR (mGFR, ⁵¹Cr-EDTA clearance)** — the gold
@@ -762,7 +762,7 @@ complete (no missing) in this dataset. The creatinine equation shown is **CKD-EP
 race-free version present in the data).
 :::
 
-# Variable codebook
+# 4 Variable codebook
 
 Every field used to build the tables. **Inputs** are columns read from
 `OncoGFR1200_MGH_chemo_CJASN.xlsx` (N = 1,200); **derived** fields are computed in this analysis.
@@ -813,7 +813,7 @@ equation columns plus `gender`, `BMI`, and `metastasis` (below).*
 
 Cell colour: two versions of the same tables — **Part A** categorical (yellow <5 / orange 5–10 / red 10–20 / purple >20) and **Part B** continuous yellow→red (worst at ≥30 %). Higher % = worse in both; the number is printed in every cell.
 
-# Part A — Categorical colour (4 levels)
+# 5 Part A — Categorical colour (4 levels)
 
 Severity bands (same scale for over- and under-dose):
 <span style="background:#FFEDA0">&nbsp;yellow &lt; 5 %&nbsp;</span> ·
@@ -833,7 +833,7 @@ emit_scale(cl_index, "cat", "index", "Indexed GFR (mL/min/1.73 m²)")
 emit_scale(cl_nonindex, "cat", "nonindex", "Non-indexed GFR (absolute mL/min)")
 ```
 
-# Part B — Continuous colour (yellow → red)
+# 6 Part B — Continuous colour (yellow → red)
 
 Shade ∝ value, saturating at 30 %:
 <span style="background:#FFEDA0">&nbsp;yellow = 0 %&nbsp;</span> →
@@ -854,7 +854,7 @@ emit_scale(cl_nonindex, "cont", "nonindex", "Non-indexed GFR (absolute mL/min)")
 ```
 
 
-# Most conservative GFR — over/under-dose heatmap
+# 7 Most conservative GFR — over/under-dose heatmap
 
 **Most conservative GFR** = for each patient, the **lowest** of three estimates —
 **CKD-EPI Cr (2021)**, **Cockcroft-Gault**, and **CKD-EPI Cr-Cys (2021)** — i.e. the dose-limiting
@@ -893,7 +893,7 @@ emit_mcg(mcg_nonindex, "cont", "nonindex", "Non-indexed GFR (absolute mL/min)")
 ```
 
 
-# Body-composition subset (465) — over/under-dose heatmap
+# 8 Body-composition subset (465) — over/under-dose heatmap
 
 Same over/under-dose heatmaps as above but **limited to the 465 patients with body-composition
 data** (matched by `protocol` to `OncoGFR_MGH_final_0428.xlsx`), with an added **Sarcopenia (Prado)**
@@ -929,7 +929,7 @@ emit_scale(cl_nonindex_465, "cont", "nonindex", "Non-indexed GFR (absolute mL/mi
 ```
 
 
-# LOESS — over/under-dose probability vs eGFR ratio (Cys / Cr)
+# 9 LOESS — over/under-dose probability vs eGFR ratio (Cys / Cr)
 
 For each of the **8 eGFR equations**, a **LOESS smooth** of the probability that the equation
 **over-** (or **under-) doses** relative to measured GFR (mGFR), as a function of the patient's
@@ -992,7 +992,7 @@ emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Underdose
 ```
 
 
-# LOESS (difference) — over/under-dose probability vs eGFR difference (Cys − Cr)
+# 10 LOESS (difference) — over/under-dose probability vs eGFR difference (Cys − Cr)
 
 Identical to the LOESS section above, but the x-axis is the **eGFR difference = CKD-EPI Cys (2012)
 − CKD-EPI Cr (2021)** (mL/min/1.73 m²) instead of the ratio. Negative = cystatin-eGFR below
@@ -1046,7 +1046,7 @@ emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Underdose
 ```
 
 
-# LOESS (% difference) — over/under-dose probability vs eGFR % difference
+# 11 LOESS (% difference) — over/under-dose probability vs eGFR % difference
 
 Third LOESS set: the x-axis is the **% difference = (eGFR_Cys − eGFR_Cr) ⁄ eGFR_Cr × 100**
 (CKD-EPI Cys 2012 vs Cr 2021). It is a ratio of two eGFRs, so it is **scale-invariant**. **Positive**
@@ -1060,7 +1060,7 @@ The axis treatment is the Grant page's — **10-point ticks** and a black dashed
 
 Per scale: the 8-equation × 5-drug LOESS panels for over- and under-dose. The carboplatin
 ±20 % overlay that used to sit here now lives in
-**[Carboplatin 20 % plots](#carboplatin-20-plots)**, alongside the other three frailty markers.
+**[§14 Carboplatin 20 % plots](#carboplatin-20-plots)**, alongside the other three frailty markers.
 
 ## Indexed GFR (mL/min/1.73 m²)
 
@@ -1107,7 +1107,7 @@ emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Underdose
 ```
 
 
-# LOESS (measured GFR) — over/under-dose probability vs measured GFR
+# 12 LOESS (measured GFR) — over/under-dose probability vs measured GFR
 
 Fourth LOESS set: the x-axis is the **reference itself — measured GFR (⁵¹Cr-EDTA)** — rather than a
 Cr‑vs‑Cys discordance. It asks a different question: **at what true GFR levels does each equation
@@ -1163,71 +1163,7 @@ emit_plots(lapply(LOESS_EQS, function(eq) loess_plot(cl_nonindex, eq, "Underdose
 ```
 
 
-# Carboplatin 20 % plots
-
-The four frailty markers against **carboplatin ±20 % overdose**, on the **absolute mL/min
-(actual BSA)** scale, measured GFR as reference — one consistent format throughout:
-
-- **Black line, left axis** — the proportion overdosed.
-- **Light pink, right axis** — how the cohort is distributed: a histogram for continuous
-  markers, bars for discrete ones.
-- One panel per dosing equation (8), so each marker can be read across equations.
-
-**Continuous markers** (eGFR % difference, muscle Z-score) use LOESS to characterise the
-unadjusted association, with the smooth clipped to [0, 100]; the shaded band is its 95 % CI.
-**Discrete markers** (ECOG, Fried) show the observed proportion per category, joined by the
-black line.
-
-## eGFR % difference  (whole 1,200 cohort)
-
-```{r}
-#| label: carbo20-egfrdiff
-#| results: asis
-#| fig-width: 7.5
-#| fig-height: 4.4
-emit_plots(lapply(LOESS_EQS, function(eq) overlay_plot(cl_nonindex, eq)), "carbo20-egfrdiff")
-```
-
-## ECOG performance status  (whole 1,200 cohort)
-
-```{r}
-#| label: carbo20-ecog
-#| results: asis
-#| fig-width: 7.5
-#| fig-height: 4.4
-emit_plots(lapply(LOESS_EQS, function(eq)
-  bar_line_plot(cl_nonindex, eq, "ecog_grp", "ECOG performance status")), "carbo20-ecog")
-```
-
-## Fried frailty classification  (592 patients with a Fried class)
-
-```{r}
-#| label: carbo20-fried
-#| results: asis
-#| fig-width: 7.5
-#| fig-height: 4.4
-emit_plots(lapply(LOESS_EQS, function(eq)
-  bar_line_plot(cl_nonindex, eq, "fried_grp", "Fried frailty class")), "carbo20-fried")
-```
-
-## Muscle Z-score  (465 body-composition cohort)
-
-Same construction as the eGFR % difference panels above. No reference line here — the −10 %
-marker belongs to the eGFR difference and has no counterpart on the Z-score scale.
-
-```{r}
-#| label: carbo20-musclez
-#| results: asis
-#| fig-width: 7.5
-#| fig-height: 4.4
-emit_plots(lapply(LOESS_EQS, function(eq)
-  overlay_plot(cl_nonindex_465, eq, xvar = "muscle_z", xlab = MZ_XLAB, xlim = MZ_XLIM,
-               binw = 0.25, pct_axis = FALSE, ref_at = NULL, data = dat_465)),
-  "carbo20-musclez")
-```
-
-
-# Frailty markers — muscle Z-score & ECOG
+# 13 Frailty markers — muscle Z-score & ECOG
 
 Two additional views of dosing error against markers of frailty, in the same per-equation /
 5-drugs-overlaid format. Over/under-dose is always vs **measured GFR**. Indexed GFR classification.
@@ -1423,7 +1359,71 @@ emit_plots(lapply(LOESS_EQS, function(eq) ecog_plot(cl_index, eq, "Underdose", "
 ```
 
 
-# 5 Notes
+# 14 Carboplatin 20 % plots
+
+The four frailty markers against **carboplatin ±20 % overdose**, on the **absolute mL/min
+(actual BSA)** scale, measured GFR as reference — one consistent format throughout:
+
+- **Black line, left axis** — the proportion overdosed.
+- **Light pink, right axis** — how the cohort is distributed: a histogram for continuous
+  markers, bars for discrete ones.
+- One panel per dosing equation (8), so each marker can be read across equations.
+
+**Continuous markers** (eGFR % difference, muscle Z-score) use LOESS to characterise the
+unadjusted association, with the smooth clipped to [0, 100]; the shaded band is its 95 % CI.
+**Discrete markers** (ECOG, Fried) show the observed proportion per category, joined by the
+black line.
+
+## eGFR % difference  (whole 1,200 cohort)
+
+```{r}
+#| label: carbo20-egfrdiff
+#| results: asis
+#| fig-width: 7.5
+#| fig-height: 4.4
+emit_plots(lapply(LOESS_EQS, function(eq) overlay_plot(cl_nonindex, eq)), "carbo20-egfrdiff")
+```
+
+## ECOG performance status  (whole 1,200 cohort)
+
+```{r}
+#| label: carbo20-ecog
+#| results: asis
+#| fig-width: 7.5
+#| fig-height: 4.4
+emit_plots(lapply(LOESS_EQS, function(eq)
+  bar_line_plot(cl_nonindex, eq, "ecog_grp", "ECOG performance status")), "carbo20-ecog")
+```
+
+## Fried frailty classification  (592 patients with a Fried class)
+
+```{r}
+#| label: carbo20-fried
+#| results: asis
+#| fig-width: 7.5
+#| fig-height: 4.4
+emit_plots(lapply(LOESS_EQS, function(eq)
+  bar_line_plot(cl_nonindex, eq, "fried_grp", "Fried frailty class")), "carbo20-fried")
+```
+
+## Muscle Z-score  (465 body-composition cohort)
+
+Same construction as the eGFR % difference panels above. No reference line here — the −10 %
+marker belongs to the eGFR difference and has no counterpart on the Z-score scale.
+
+```{r}
+#| label: carbo20-musclez
+#| results: asis
+#| fig-width: 7.5
+#| fig-height: 4.4
+emit_plots(lapply(LOESS_EQS, function(eq)
+  overlay_plot(cl_nonindex_465, eq, xvar = "muscle_z", xlab = MZ_XLAB, xlim = MZ_XLIM,
+               binw = 0.25, pct_axis = FALSE, ref_at = NULL, data = dat_465)),
+  "carbo20-musclez")
+```
+
+
+# 15 Notes
 
 - **Reference.** Measured GFR (⁵¹Cr-EDTA) is the gold standard; each equation is compared to mGFR on
   the matching scale (indexed vs indexed, non-indexed vs non-indexed).
