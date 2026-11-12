@@ -436,11 +436,17 @@ FINAL_SUB_COLS <- c("Overall", "Female", "Male", "bmi1", "bmi2", "bmi3", "bmi4",
   age_ge70 = sum(dat$age_grp  == ">=70",           na.rm = TRUE),
   sarc_no  = sum(dat$sarc_grp == "Non-sarcopenic", na.rm = TRUE),
   sarc_yes = sum(dat$sarc_grp == "Sarcopenic",     na.rm = TRUE))
+# Non-breaking spaces (U+00A0) so a label never breaks mid-band: the BMI
+# categories used to wrap to "20 to" / "<25" in the narrow columns. "N = n"
+# is likewise unbreakable, and header line spacing in final_ft() puts air
+# between the category line and the count.
+.nb <- function(x) gsub(" ", "\u00A0", x, fixed = TRUE)
 FINAL_SUB_LABS <- stats::setNames(
-  paste0(c("Overall", "Female", "Male", "<20", "20 to <25", "25 to <30", "≥30",
+  paste0(c("Overall", "Female", "Male",
+           "<20", .nb("20 to <25"), .nb("25 to <30"), "≥30",
            "Not metastatic", "Metastatic", "<70", "≥70",
            "Non-sarcopenic", "Sarcopenic"),
-         "\nN=", .final_n[FINAL_SUB_COLS]),
+         "\nN\u00A0=\u00A0", .final_n[FINAL_SUB_COLS]),
   FINAL_SUB_COLS)
 
 # Patient-level classification under the FINAL rules, for one GFR scale.
@@ -533,6 +539,8 @@ final_ft <- function(tab, title) {
   ft <- flextable::hline_bottom(ft, border = blk, part = "header")
   ft <- flextable::fontsize(ft, size = 9, part = "all")
   ft <- flextable::fontsize(ft, i = 1, size = 11, part = "header")
+  # Breathing room between the category line and its "N = n" line.
+  ft <- flextable::line_spacing(ft, space = 1.5, part = "header")
   flextable::set_table_properties(ft, layout = "autofit", width = 1)
 }
 
