@@ -363,6 +363,195 @@ DRUGS <- list(
 DRUG_IDS  <- vapply(DRUGS, `[[`, "", "id")
 DRUG_LABS <- vapply(DRUGS, `[[`, "", "lab")
 
+# ===== FINAL HEATMAP PLOTS =================================================
+# Dosing rules transcribed from final_chemos.docx (Dropbox,
+# Cystatin_C/Brazil/Dosing_Paper_Leyre/). Tiers are ORDINAL dose levels, higher
+# = more drug. NOTE tier 0 no longer always means "avoid": for etoposide it is a
+# 50 % dose and for melphalan 140 mg/m². Band edges follow the document; where a
+# document band stops at x.99 the next tier starts at x, so no GFR falls in a gap.
+dose_tier_final <- function(gfr, drug) {
+  d <- tolower(drug)
+  if (d == "pemetrexed")          # >=45 full | <45 avoid
+    dplyr::case_when(is.na(gfr) ~ NA_real_, gfr >= 45 ~ 1, TRUE ~ 0)
+  else if (d == "etoposide")      # >=50 full | 15-50 -25% | <15 -50%
+    dplyr::case_when(is.na(gfr) ~ NA_real_, gfr >= 50 ~ 2, gfr >= 15 ~ 1, TRUE ~ 0)
+  else if (d == "capecitabine")   # >=50 full | 30-50 -25% | <30 avoid
+    dplyr::case_when(is.na(gfr) ~ NA_real_, gfr >= 50 ~ 2, gfr >= 30 ~ 1, TRUE ~ 0)
+  else if (d == "bleomycin")      # >=60 full | 46-60 70% | 30-45.99 60% | <30 avoid
+    dplyr::case_when(is.na(gfr) ~ NA_real_, gfr >= 60 ~ 3, gfr >= 46 ~ 2,
+                     gfr >= 30 ~ 1, TRUE ~ 0)
+  else if (d == "ifosfamide")     # >60 full | 40-60 75% | 20-40 50% | <20 avoid
+    dplyr::case_when(is.na(gfr) ~ NA_real_, gfr > 60 ~ 3, gfr >= 40 ~ 2,
+                     gfr >= 20 ~ 1, TRUE ~ 0)
+  # >60 full 200 mg/m^2 | <=60 -> 140. The doc's 30-59 and <30 bands both
+  # prescribe 140, so they collapse into one tier.
+  else if (d == "melphalan")
+    dplyr::case_when(is.na(gfr) ~ NA_real_, gfr > 60 ~ 1, TRUE ~ 0)
+  else if (d == "methotrexate")   # >60 full | 45-59.99 -25% | 30-44.99 -50% | <30 avoid
+    dplyr::case_when(is.na(gfr) ~ NA_real_, gfr > 60 ~ 3, gfr >= 45 ~ 2,
+                     gfr >= 30 ~ 1, TRUE ~ 0)
+  else stop("unknown drug: ", d)
+}
+
+FINAL_TIER_DRUGS <- c("pemetrexed", "etoposide", "capecitabine", "bleomycin",
+                      "ifosfamide", "melphalan", "methotrexate")
+# Carboplatin keeps the Calvert band rule — it is dosed to a target AUC, not from
+# a threshold table, so it could not appear in final_chemos.docx.
+FINAL_DRUGS <- list(
+  list(id = "carboplatin_b20", lab = "Carboplatin (±20%)"),
+  list(id = "carboplatin_b15", lab = "Carboplatin (±15%)"),
+  list(id = "pemetrexed",      lab = "Pemetrexed"),
+  list(id = "etoposide",       lab = "Etoposide"),
+  list(id = "capecitabine",    lab = "Capecitabine"),
+  list(id = "bleomycin",       lab = "Bleomycin"),
+  list(id = "ifosfamide",      lab = "Ifosfamide"),
+  list(id = "melphalan",       lab = "Melphalan"),
+  list(id = "methotrexate",    lab = "Methotrexate")
+)
+
+# Row order and grouping from the manuscript table: creatinine-based equations
+# (incl. Cockcroft-Gault), then cystatin, then combined. CKD-EPI 4-marker is
+# deliberately excluded. Black rules close each eGFR-type block.
+FINAL_EQS  <- c("CKDEPIcr21", "EKFCcr", "CG", "CKDEPIcys", "EKFCcys",
+                "CKDEPIcrcys21", "EKFCcrcys")
+FINAL_RULES <- c(3, 5)
+
+FINAL_SUB_COLS <- c("Overall", "Female", "Male", "bmi1", "bmi2", "bmi3", "bmi4",
+                    "met_no", "met_yes", "age_lt70", "age_ge70",
+                    "sarc_no", "sarc_yes")
+# Column N, counted once from the cohort and printed in every header. The two
+# sarcopenia columns come from the 465-patient body-composition subset, so they
+# sum to 465 and not 1,200 — stated under the section heading.
+.final_n <- c(
+  Overall  = nrow(dat),
+  Female   = sum(dat$sex      == "Female",         na.rm = TRUE),
+  Male     = sum(dat$sex      == "Male",           na.rm = TRUE),
+  bmi1     = sum(dat$bmi_grp  == "<20",            na.rm = TRUE),
+  bmi2     = sum(dat$bmi_grp  == "20 to <25",      na.rm = TRUE),
+  bmi3     = sum(dat$bmi_grp  == "25 to <30",      na.rm = TRUE),
+  bmi4     = sum(dat$bmi_grp  == ">=30",           na.rm = TRUE),
+  met_no   = sum(dat$met_grp  == "Not metastatic", na.rm = TRUE),
+  met_yes  = sum(dat$met_grp  == "Metastatic",     na.rm = TRUE),
+  age_lt70 = sum(dat$age_grp  == "<70",            na.rm = TRUE),
+  age_ge70 = sum(dat$age_grp  == ">=70",           na.rm = TRUE),
+  sarc_no  = sum(dat$sarc_grp == "Non-sarcopenic", na.rm = TRUE),
+  sarc_yes = sum(dat$sarc_grp == "Sarcopenic",     na.rm = TRUE))
+FINAL_SUB_LABS <- stats::setNames(
+  paste0(c("Overall", "Female", "Male", "<20", "20 to <25", "25 to <30", "≥30",
+           "Not metastatic", "Metastatic", "<70", "≥70",
+           "Non-sarcopenic", "Sarcopenic"),
+         "\nN=", .final_n[FINAL_SUB_COLS]),
+  FINAL_SUB_COLS)
+
+# Patient-level classification under the FINAL rules, for one GFR scale.
+build_final_long <- function(scale = c("index", "nonindex"), data = dat) {
+  scale  <- match.arg(scale)
+  col_of <- function(eq) {
+    r <- reg[reg$equation == eq, ]
+    if (scale == "index") r$index_col[[1]] else r$nonindex_col[[1]]
+  }
+  mgfr <- data[[MGFR[[scale]]]]
+  base <- dplyr::select(data, sex, bmi_grp, met_grp, age_grp, sarc_grp)
+  tier <- purrr::map_dfr(FINAL_EQS, function(eq) {
+    g <- data[[col_of(eq)]]
+    purrr::map_dfr(FINAL_TIER_DRUGS, function(dr) {
+      te <- dose_tier_final(g, dr); tr <- dose_tier_final(mgfr, dr)
+      dplyr::bind_cols(base, tibble::tibble(
+        equation = eq, drug = dr,
+        cls = dplyr::case_when(is.na(te) | is.na(tr) ~ NA_character_,
+                               te > tr ~ "Overdose", te < tr ~ "Underdose",
+                               TRUE ~ "Concordant")))
+    })
+  })
+  carbo <- purrr::map_dfr(FINAL_EQS, function(eq) {
+    g <- data[[col_of(eq)]]
+    purrr::map_dfr(names(CARBO_BANDS), function(bn) {
+      k <- CARBO_BANDS[[bn]]
+      dplyr::bind_cols(base, tibble::tibble(
+        equation = eq, drug = bn,
+        cls = carbo_class(g, mgfr, k[["k_hi"]], k[["k_lo"]])))
+    })
+  })
+  dplyr::bind_rows(tier, carbo)
+}
+fin_index    <- build_final_long("index")
+fin_nonindex <- build_final_long("nonindex")
+
+# % in `direction` for one drug, by equation (FINAL_EQS order) × subgroup.
+final_subgroup_table <- function(cl, drug_id, direction) {
+  s   <- cl %>% dplyr::filter(drug == drug_id, !is.na(cls))
+  pct <- function(d) if (nrow(d)) round(mean(d$cls == direction) * 100, 1) else NA_real_
+  lvl <- function(d, col, value) pct(d[!is.na(d[[col]]) & d[[col]] == value, ])
+  purrr::map_dfr(FINAL_EQS, function(eq) {
+    e <- s %>% dplyr::filter(equation == eq)
+    r <- reg[reg$equation == eq, ]
+    tibble::tibble(
+      type = r$type[[1]], label = r$label[[1]],
+      Overall  = pct(e),
+      Female   = lvl(e, "sex", "Female"),      Male     = lvl(e, "sex", "Male"),
+      bmi1     = lvl(e, "bmi_grp", "<20"),     bmi2     = lvl(e, "bmi_grp", "20 to <25"),
+      bmi3     = lvl(e, "bmi_grp", "25 to <30"), bmi4   = lvl(e, "bmi_grp", ">=30"),
+      met_no   = lvl(e, "met_grp", "Not metastatic"),
+      met_yes  = lvl(e, "met_grp", "Metastatic"),
+      age_lt70 = lvl(e, "age_grp", "<70"),     age_ge70 = lvl(e, "age_grp", ">=70"),
+      sarc_no  = lvl(e, "sarc_grp", "Non-sarcopenic"),
+      sarc_yes = lvl(e, "sarc_grp", "Sarcopenic"))
+  })
+}
+
+# Manuscript-style heatmap: continuous yellow->red, N in every column header,
+# eGFR type merged down the first column, black rules between type blocks.
+final_ft <- function(tab, title) {
+  cols  <- FINAL_SUB_COLS
+  spanv <- c("", "", "", "Sex", "BMI category (kg/m²)", "Metastatic disease",
+             "Age (years)", "Body composition")
+  spanw <- c(1, 1, 1, 2, 4, 2, 2, 2)
+  blk   <- officer::fp_border(color = "black", width = 1.5)
+
+  ft <- flextable::flextable(tab, col_keys = c("type", "label", cols))
+  ft <- flextable::set_header_labels(ft,
+          values = c(list(type = "eGFR type", label = "Equation"),
+                     as.list(FINAL_SUB_LABS)))
+  ft <- flextable::add_header_row(ft, top = TRUE, values = spanv, colwidths = spanw)
+  ft <- flextable::add_header_row(ft, top = TRUE, values = title,
+                                  colwidths = 2 + length(cols))
+  for (cc in cols) {
+    v  <- tab[[cc]]
+    ft <- flextable::bg(ft, j = cc, bg = ramp_fill(v, CONT_STOPS, 30), part = "body")
+    dark <- which(!is.na(v) & v >= 20)
+    if (length(dark))
+      ft <- flextable::color(ft, i = dark, j = cc, color = "white", part = "body")
+  }
+  ft <- flextable::merge_v(ft, j = "type", part = "body")
+  ft <- flextable::valign(ft, j = "type", valign = "top", part = "body")
+  ft <- flextable::align(ft, j = cols, align = "center", part = "all")
+  ft <- flextable::align(ft, i = 2, align = "center", part = "header")
+  ft <- flextable::align(ft, i = 1, align = "left",   part = "header")
+  ft <- flextable::bold(ft, part = "header")
+  # Black rules closing each eGFR-type block, plus one under the header.
+  ft <- flextable::hline(ft, i = FINAL_RULES, border = blk, part = "body")
+  ft <- flextable::hline_bottom(ft, border = blk, part = "header")
+  ft <- flextable::fontsize(ft, size = 9, part = "all")
+  ft <- flextable::fontsize(ft, i = 1, size = 11, part = "header")
+  flextable::set_table_properties(ft, layout = "autofit", width = 1)
+}
+
+# Emit all 9 drugs x over/under for one scale. Call inside results='asis'.
+emit_final <- function(cl, scale, scale_label) {
+  cat("\n\n## ", scale_label, "\n\n", sep = "")
+  for (d in FINAL_DRUGS) {
+    cat("\n\n### ", d$lab, "\n\n", sep = "")
+    for (dir in c("Overdose", "Underdose")) {
+      ft <- final_ft(final_subgroup_table(cl, d$id, dir), paste0(toupper(dir), " (%)"))
+      save_ft_docx(ft, paste0("final_", scale, "_", d$id, "_", tolower(dir)))
+      cat(flextable::flextable_to_rmd(ft)); cat("\n\n")
+    }
+    cat(sprintf(
+      "[📄 Overdose Word](../tables/heatmap/final_%1$s_%2$s_overdose.docx) · [📄 Underdose Word](../tables/heatmap/final_%1$s_%2$s_underdose.docx)\n\n",
+      scale, d$id))
+  }
+}
+
 # Equations shown in the LOESS panels — all 8. NB: the CKD-EPI Cys 2012 and
 # CKD-EPI Cr 2021 panels are partly self-referential (they define the x-axis
 # ratio/difference), so interpret those two with care.
@@ -1423,7 +1612,60 @@ emit_plots(lapply(LOESS_EQS, function(eq)
 ```
 
 
-# 15 Notes
+# 15 Final heatmap plots
+
+The manuscript heatmaps. Dosing thresholds come from **`final_chemos.docx`**; every
+other section on this page uses the earlier rules, so **these tables supersede them**
+for the drugs listed below.
+
+Rows are the **seven** equations of the manuscript table, in its order and grouping —
+creatinine-based (including Cockcroft-Gault), then cystatin, then combined — with black
+rules closing each block. CKD-EPI 4-marker is excluded. Every column header carries its
+**N**. Cells are the % of that subgroup over- or under-dosed relative to measured GFR,
+coloured yellow → red and saturating at 30 %.
+
+::: {.callout-important}
+## Two things to read carefully
+
+**The sarcopenia columns are a different denominator.** Non-sarcopenic (N=308) and
+Sarcopenic (N=157) come from the 465-patient body-composition subset, not the full 1,200.
+They sum to 465. Every other column is drawn from the whole cohort.
+
+**Tier 0 does not always mean "avoid".** The thresholds are ordinal dose levels. For
+etoposide the lowest tier is a 50 % dose, and for melphalan it is 140 mg/m². A patient
+moving into the lowest tier is therefore not always being told to stop the drug.
+:::
+
+### Dosing rules used here
+
+| Drug | Full dose | Reduced tiers | Lowest tier |
+|---|---|---|---|
+| Carboplatin (±20 % / ±15 %) | Calvert AUC 5 | — | band rule, not a threshold |
+| Pemetrexed | ≥45 | — | <45 avoid |
+| Etoposide | ≥50 | 15–50 → −25 % | <15 → −50 % |
+| Capecitabine | ≥50 | 30–50 → −25 % | <30 avoid |
+| Bleomycin | ≥60 | 46–60 → 70 %; 30–45.99 → 60 % | <30 avoid |
+| Ifosfamide | >60 | 40–60 → 75 %; 20–40 → 50 % | <20 avoid |
+| Melphalan | >60 (200 mg/m²) | — | ≤60 → 140 mg/m² |
+| Methotrexate | >60 | 45–59.99 → −25 %; 30–44.99 → −50 % | <30 avoid |
+
+All GFR units mL/min (non-indexed) or mL/min/1.73 m² (indexed), matched to the
+reference measured GFR on the same scale.
+
+```{r}
+#| label: final-heatmaps-index
+#| results: asis
+emit_final(fin_index, "index", "Indexed GFR (mL/min/1.73 m²)")
+```
+
+```{r}
+#| label: final-heatmaps-nonindex
+#| results: asis
+emit_final(fin_nonindex, "nonindex", "Non-indexed GFR (absolute mL/min)")
+```
+
+
+# 16 Notes
 
 - **Reference.** Measured GFR (⁵¹Cr-EDTA) is the gold standard; each equation is compared to mGFR on
   the matching scale (indexed vs indexed, non-indexed vs non-indexed).
