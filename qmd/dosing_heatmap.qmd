@@ -122,6 +122,10 @@ dat <- raw %>%
     met_grp = factor(metastasis, levels = c(0, 1),
                      labels = c("Not metastatic", "Metastatic")),
     age_grp = factor(ifelse(age >= 70, ">=70", "<70"), levels = c("<70", ">=70")),
+    # charlson arrives as a CHARACTER column; its only non-numeric entries are
+    # 3 blank cells, every other value being an integer 1-19, so coercing turns
+    # exactly those 3 into NA and nothing else.
+    charlson_n = suppressWarnings(as.numeric(charlson)),
     # ECOG performance status; only 8 patients are ECOG 3, so lump 2+3 -> "≥2".
     ecog_grp = factor(ifelse(ecog >= 2, "≥2", as.character(ecog)), levels = c("0", "1", "≥2")),
     # LOESS x-axes: eGFRcys (CKD-EPI 2012) vs eGFRcr (CKD-EPI 2021). The RATIO is
@@ -130,7 +134,11 @@ dat <- raw %>%
     egfr_ratio = CKDEPIcysindex / CKDEPIcr21index,
     egfr_diff  = CKDEPIcysindex - CKDEPIcr21index,
     # % difference (Cys − Cr) relative to creatinine; scale-invariant.
-    egfr_pctdiff = (CKDEPIcysindex - CKDEPIcr21index) / CKDEPIcr21index * 100
+    egfr_pctdiff = (CKDEPIcysindex - CKDEPIcr21index) / CKDEPIcr21index * 100,
+    # Section 14 sensitivity definition: the same discordance measured against
+    # Cockcroft-Gault creatinine clearance, both terms on the ACTUAL-BSA
+    # (non-indexed) scale. This is the index the grant page plots.
+    egfr_pctdiff_cg = (CKDEPIcrcys21non_index - CGnon_index) / CGnon_index * 100
   )
 
 # Body-composition subset (465 patients, matched on `protocol`). Adds a Prado
@@ -229,7 +237,8 @@ build_class_long <- function(scale = c("index", "nonindex"), data = dat) {
   }
   mgfr <- data[[MGFR[[scale]]]]
   base <- dplyr::select(data, sex, bmi_grp, met_grp, age_grp, ecog_grp, fried_grp,
-                        egfr_ratio, egfr_diff, egfr_pctdiff, sarc_grp, muscle_z,
+                        egfr_ratio, egfr_diff, egfr_pctdiff, egfr_pctdiff_cg,
+                        sarc_grp, muscle_z,
                         cachexia_grp, asgppp_grp)
   base$mgfr_x <- mgfr   # scale-appropriate measured GFR, for the mGFR-on-x LOESS set
   tier <- purrr::map_dfr(reg$equation, function(eq) {
@@ -390,16 +399,24 @@ dose_tier_final <- function(gfr, drug) {
   else if (d == "methotrexate")   # >60 full | 45-59.99 -25% | 30-44.99 -50% | <30 avoid
     dplyr::case_when(is.na(gfr) ~ NA_real_, gfr > 60 ~ 3, gfr >= 45 ~ 2,
                      gfr >= 30 ~ 1, TRUE ~ 0)
+  # Cisplatin is NOT in final_chemos.docx. It keeps this project's existing
+  # rule (>=60 full | 50-59 -25% | 40-49 -50% | <40 avoid); delegating to
+  # dose_tier() means the Section 15 cisplatin tables and every earlier
+  # section on the page can never drift apart.
+  else if (d == "cisplatin") dose_tier(gfr, "cisplatin")
   else stop("unknown drug: ", d)
 }
 
 FINAL_TIER_DRUGS <- c("pemetrexed", "etoposide", "capecitabine", "bleomycin",
-                      "ifosfamide", "melphalan", "methotrexate")
-# Carboplatin keeps the Calvert band rule — it is dosed to a target AUC, not from
-# a threshold table, so it could not appear in final_chemos.docx.
+                      "ifosfamide", "melphalan", "methotrexate", "cisplatin")
+# Two drugs are not from final_chemos.docx: carboplatin keeps the Calvert band
+# rule (it is dosed to a target AUC, not from a threshold table, so it could
+# not appear in that document), and cisplatin keeps this project's existing
+# tier rule. Both are listed first, ahead of the seven document drugs.
 FINAL_DRUGS <- list(
   list(id = "carboplatin_b20", lab = "Carboplatin (±20%)"),
   list(id = "carboplatin_b15", lab = "Carboplatin (±15%)"),
+  list(id = "cisplatin",       lab = "Cisplatin"),
   list(id = "pemetrexed",      lab = "Pemetrexed"),
   list(id = "etoposide",       lab = "Etoposide"),
   list(id = "capecitabine",    lab = "Capecitabine"),
@@ -550,7 +567,7 @@ final_ft <- function(tab, title) {
   flextable::set_table_properties(ft, layout = "autofit", width = 1)
 }
 
-# Emit all 9 drugs x over/under for one scale. Call inside results='asis'.
+# Emit all 10 drugs x over/under for one scale. Call inside results='asis'.
 emit_final <- function(cl, scale, scale_label) {
   cat("\n\n## ", scale_label, "\n\n", sep = "")
   for (d in FINAL_DRUGS) {
@@ -614,16 +631,33 @@ REF_LINE    <- -10
 BINW        <- 5                  # histogram bin width, percentage points
 CARBO_RED   <- "#F8766D"          # ggplot's hue for the carboplatin ±20% line
 
-pctd_x <- function() {
+# Tick styling shared by every x axis in the carboplatin section: black ticks,
+# no minor grid. `pct` appends "%" to the labels — the absolute-difference
+# sensitivity panels pass FALSE, where a "%" would be wrong.
+tick_x <- function(breaks, pct = TRUE) {
   list(
-    ggplot2::scale_x_continuous(breaks = PCTD_BREAKS,
-                                labels = paste0(PCTD_BREAKS, "%"),
+    ggplot2::scale_x_continuous(breaks = breaks,
+                                labels = if (pct) paste0(breaks, "%") else breaks,
                                 minor_breaks = NULL),
     ggplot2::theme(
       axis.ticks.x        = ggplot2::element_line(colour = "black", linewidth = 0.4),
       axis.ticks.length.x = grid::unit(4, "pt"),
       panel.grid.minor.x  = ggplot2::element_blank()))
 }
+pctd_x <- function() tick_x(PCTD_BREAKS)
+
+# --- Section 14 sensitivity definitions of "eGFR difference" ---------------
+# 1) The plain difference Cys − Cr, taken on the INDEXED scale (DIFF_XLAB /
+#    DIFF_XLIM above). Unlike the % version it is NOT scale-invariant, so the
+#    scale is stated on the axis. Its dashed marker sits at 0 — the two
+#    equations agree — since -10 is a percentage and means nothing here.
+DIFF_BREAKS <- seq(-80, 40, 10)
+# 2) BSA-adjusted eGFRcr-cys against Cockcroft-Gault creatinine clearance,
+#    both in absolute mL/min, as a percentage of Cockcroft-Gault. Window and
+#    breaks ported unchanged from the grant page, which plots this index.
+PCTD_CG_XLAB   <- "eGFR % difference  [(CKD-EPI Cr-Cys 2021 − Cockcroft-Gault) / Cockcroft-Gault, %]"
+PCTD_CG_XLIM   <- c(-50, 40)
+PCTD_CG_BREAKS <- seq(-60, 60, 10)
 ref_vline <- function() {
   ggplot2::geom_vline(xintercept = REF_LINE, linetype = "dashed",
                       colour = "black", linewidth = 0.5)
@@ -638,7 +672,7 @@ ref_vline <- function() {
 overlay_plot <- function(cl, eq, xvar = "egfr_pctdiff", xlab = PCTD_XLAB,
                          xlim = PCTD_XLIM, drug_id = "carboplatin_b20",
                          binw = BINW, pct_axis = TRUE, ref_at = REF_LINE,
-                         data = dat) {
+                         data = dat, xscale = NULL) {
   r   <- reg[reg$equation == eq, ]
   ttl <- paste0(r$type, " · ", r$label)
 
@@ -672,7 +706,9 @@ overlay_plot <- function(cl, eq, xvar = "egfr_pctdiff", xlab = PCTD_XLAB,
                          fill = "black", alpha = 0.12) +
     ggplot2::geom_line(data = ov, ggplot2::aes(x, y = fit),
                        colour = "black", linewidth = 1.7)
-  if (pct_axis) p <- p + pctd_x()
+  # `xscale` wins when given (the sensitivity panels); otherwise the default
+  # percentage ticks, so every existing call behaves exactly as before.
+  if (!is.null(xscale)) p <- p + xscale else if (pct_axis) p <- p + pctd_x()
   p +
     ggplot2::scale_y_continuous(
       name = "% overdosed  (carboplatin ±20%)", breaks = seq(0, 100, 25),
@@ -887,6 +923,164 @@ emit_mcg <- function(cl, version, scale, scale_label) {
     "[📄 Overdose Word](../tables/heatmap/mcg_%1$s_%2$s_overdose.docx) · [📄 Underdose Word](../tables/heatmap/mcg_%1$s_%2$s_underdose.docx)\n\n",
     version, scale))
 }
+
+# ===== TABLE 1 — Fried frailty cohort ======================================
+# Baseline characteristics of the 592 patients who have a Fried class,
+# stratified by that class. Tests: Kruskal-Wallis across the three classes for
+# continuous rows (no normality assumed, and several of these are skewed);
+# chi-square for categorical rows, or Fisher's exact (Monte Carlo) when any
+# expected count is < 5. The "n" column is how many of the 592 have that
+# variable observed — body composition and nutrition were measured on subsets,
+# so those rows are not 592.
+T1_LEVELS <- c("Non-frail", "Pre-frail", "Frail")
+T1_IND    <- strrep(" ", 4)   # indent for the levels of a categorical row
+
+t1_mean_sd <- function(x, digits = 1) {
+  if (!length(x)) return("—")
+  sprintf("%.*f (%.*f)", digits, mean(x), digits, stats::sd(x))
+}
+t1_msd2    <- function(x) t1_mean_sd(x, 2)   # labs and Z-scores need 2 dp
+t1_med_iqr <- function(x, digits = 1) {
+  if (!length(x)) return("—")
+  q <- stats::quantile(x, c(0.25, 0.5, 0.75))
+  sprintf("%.*f [%.*f–%.*f]", digits, q[[2]], digits, q[[1]], digits, q[[3]])
+}
+t1_med_iqr0 <- function(x) t1_med_iqr(x, 0)  # integer scores
+t1_n_pct <- function(f) {
+  n <- sum(!is.na(f)); if (!n) return("—")
+  k <- sum(f, na.rm = TRUE); sprintf("%d (%.1f%%)", k, k / n * 100)
+}
+t1_p_tab <- function(tab) {
+  if (any(dim(tab) < 2) || sum(tab) == 0) return(NA_real_)
+  ex <- suppressWarnings(stats::chisq.test(tab)$expected)
+  if (any(ex < 5)) stats::fisher.test(tab, simulate.p.value = TRUE, B = 20000)$p.value
+  else suppressWarnings(stats::chisq.test(tab)$p.value)
+}
+t1_row <- function(label, n, vals, p = NA_real_, hdr = FALSE) {
+  tibble::tibble(label = label, n = n, Overall = vals[[1]],
+                 `Non-frail` = vals[[2]], `Pre-frail` = vals[[3]], Frail = vals[[4]],
+                 p = p, hdr = hdr)
+}
+t1_section <- function(label) t1_row(label, NA_integer_, as.list(rep("", 4)), hdr = TRUE)
+
+# One continuous row; `fmt` is t1_mean_sd or t1_med_iqr.
+t1_cont <- function(d, var, label, fmt = t1_mean_sd) {
+  x  <- d[[var]]; g <- d$fried_grp
+  ok <- !is.na(x) & !is.na(g)
+  x  <- x[ok]; g <- factor(g[ok], levels = T1_LEVELS)
+  p  <- if (nlevels(droplevels(g)) > 1) stats::kruskal.test(x, g)$p.value else NA_real_
+  t1_row(label, length(x),
+         c(list(fmt(x)), lapply(T1_LEVELS, function(l) fmt(x[g == l]))), p)
+}
+# One binary row from a logical vector aligned to `d`.
+t1_bin <- function(d, flag, label) {
+  g  <- d$fried_grp; ok <- !is.na(flag) & !is.na(g)
+  f  <- flag[ok]; g <- factor(g[ok], levels = T1_LEVELS)
+  t1_row(label, length(f),
+         c(list(t1_n_pct(f)), lapply(T1_LEVELS, function(l) t1_n_pct(f[g == l]))),
+         t1_p_tab(table(f, g)))
+}
+# A categorical variable: a header row carrying the one p-value for the whole
+# variable, then one indented row per level.
+t1_cat <- function(d, var, label) {
+  v  <- d[[var]]; g <- d$fried_grp; ok <- !is.na(v) & !is.na(g)
+  v  <- droplevels(factor(v[ok])); g <- factor(g[ok], levels = T1_LEVELS)
+  dplyr::bind_rows(
+    t1_row(label, length(v), as.list(rep("", 4)), t1_p_tab(table(v, g))),
+    purrr::map_dfr(levels(v), function(l) {
+      f <- v == l
+      t1_row(paste0(T1_IND, l), NA_integer_,
+             c(list(t1_n_pct(f)), lapply(T1_LEVELS, function(k) t1_n_pct(f[g == k]))))
+    }))
+}
+# Carboplatin +/-20 % overdose rate for one equation, read off the long
+# classification table (which already carries fried_grp).
+t1_over <- function(cl, eq, label, drug_id = "carboplatin_b20") {
+  d <- cl %>% dplyr::filter(equation == eq, drug == drug_id,
+                            !is.na(cls), !is.na(fried_grp))
+  f <- d$cls == "Overdose"; g <- factor(d$fried_grp, levels = T1_LEVELS)
+  t1_row(label, length(f),
+         c(list(t1_n_pct(f)), lapply(T1_LEVELS, function(l) t1_n_pct(f[g == l]))),
+         t1_p_tab(table(f, g)))
+}
+
+build_table1 <- function(data = dat, cl = cl_nonindex) {
+  d <- data %>% dplyr::filter(!is.na(fried_grp))
+  dplyr::bind_rows(
+    t1_section("Demographics"),
+    t1_cont(d, "age", "Age, years"),
+    t1_bin(d, d$sex == "Female", "Female"),
+    t1_cont(d, "BMI", "Body mass index, kg/m²"),
+    t1_cat(d, "bmi_grp", "BMI category"),
+    t1_cont(d, "BSA", "Body surface area, m²", t1_msd2),
+
+    t1_section("Cancer and comorbidity"),
+    t1_bin(d, d$met_grp == "Metastatic", "Metastatic disease"),
+    t1_cat(d, "ecog_grp", "ECOG performance status"),
+    t1_cont(d, "charlson_n", "Charlson comorbidity index", t1_med_iqr0),
+    t1_bin(d, d$hypertension == 1, "Hypertension"),
+    t1_bin(d, d$diabetes == 1, "Diabetes"),
+
+    t1_section("Laboratory"),
+    t1_cont(d, "Cr", "Creatinine, mg/dL", t1_msd2),
+    t1_cont(d, "CysC", "Cystatin C, mg/L", t1_msd2),
+    t1_cont(d, "Alb", "Albumin, g/dL"),
+    t1_cont(d, "Hb", "Haemoglobin, g/dL"),
+    t1_cont(d, "CRP", "C-reactive protein, mg/L", t1_med_iqr),
+
+    t1_section("Kidney function, indexed (mL/min/1.73 m²)"),
+    t1_cont(d, "mGFRindex", "Measured GFR (⁵¹Cr-EDTA)"),
+    t1_cont(d, "CKDEPIcr21index", "CKD-EPI Cr 2021"),
+    t1_cont(d, "CKDEPIcysindex", "CKD-EPI Cys 2012"),
+    t1_cont(d, "CKDEPIcrcys21index", "CKD-EPI Cr-Cys 2021"),
+    t1_cont(d, "CGindex", "Cockcroft-Gault"),
+
+    t1_section("eGFR discordance (the three Section 14 definitions)"),
+    t1_cont(d, "egfr_pctdiff", "(Cys − Cr) / Cr, %"),
+    t1_cont(d, "egfr_diff", "Cys − Cr, mL/min/1.73 m²"),
+    t1_cont(d, "egfr_pctdiff_cg", "(Cr-Cys − CG) / CG, % (actual BSA)"),
+
+    t1_section("Body composition and nutrition (measured in subsets)"),
+    t1_bin(d, d$sarc_grp == "Sarcopenic", "Sarcopenic (Prado)"),
+    t1_cont(d, "muscle_z", "Muscle Z-score (L3 SMI)", t1_msd2),
+    t1_bin(d, d$cachexia_grp == "Yes", "Cachexia"),
+
+    t1_section("Carboplatin ±20 % overdose vs measured GFR (actual BSA)"),
+    t1_over(cl, "CKDEPIcr21",    "CKD-EPI Cr 2021"),
+    t1_over(cl, "CG",            "Cockcroft-Gault"),
+    t1_over(cl, "CKDEPIcrcys21", "CKD-EPI Cr-Cys 2021"),
+    t1_over(cl, "CKDEPIcys",     "CKD-EPI Cys 2012"))
+}
+
+# Render Table 1: section rows bold on grey, column N in the header, p-values
+# to three decimals.
+table1_ft <- function(tb, data = dat) {
+  d  <- data %>% dplyr::filter(!is.na(fried_grp))
+  nn <- c(Overall = nrow(d), table(d$fried_grp)[T1_LEVELS])
+  sec <- which(tb$hdr)
+  body <- tb %>%
+    dplyr::mutate(
+      n = ifelse(is.na(n), "", as.character(n)),
+      p = dplyr::case_when(is.na(p) ~ "", p < 0.001 ~ "<0.001",
+                           TRUE ~ sprintf("%.3f", p))) %>%
+    dplyr::select(-hdr)
+  ft <- flextable::flextable(body)
+  ft <- flextable::set_header_labels(ft, values = stats::setNames(
+    as.list(c("Characteristic", "n", paste0(c("Overall", T1_LEVELS),
+                                            "\nN = ", nn), "p")),
+    c("label", "n", "Overall", T1_LEVELS, "p")))
+  ft <- flextable::bold(ft, i = sec, part = "body")
+  ft <- flextable::bg(ft, i = sec, bg = "#EFEFEF", part = "body")
+  ft <- flextable::align(ft, j = c("n", "Overall", T1_LEVELS, "p"),
+                         align = "center", part = "all")
+  ft <- flextable::align(ft, j = "label", align = "left", part = "all")
+  ft <- flextable::bold(ft, part = "header")
+  ft <- flextable::hline_bottom(ft,
+          border = officer::fp_border(color = "black", width = 1.5), part = "header")
+  ft <- flextable::fontsize(ft, size = 9, part = "all")
+  ft <- flextable::line_spacing(ft, space = 1.5, part = "header")
+  flextable::set_table_properties(ft, layout = "autofit", width = 1)
+}
 ```
 
 # 3 Overview
@@ -1002,6 +1196,28 @@ equation columns plus `gender`, `BMI`, and `metastasis` (below).*
 | `met_grp` | `metastasis` (0, 1) | Not metastatic (0); Metastatic (1) |
 | `age_grp` | `age` (years) | `<70`; `≥70` (binary cut-off at 70) |
 | `sarc_grp` | `sarcopenia_prado` (`OncoGFR_MGH_final_0428.xlsx`, joined on `protocol`) | Non-sarcopenic (0); Sarcopenic (1). Only the **465** body-comp patients (`in_bodycomp`) — used in the 465 section. |
+
+### eGFR difference definitions (the figure x-axes)
+
+Three ways of expressing how far a cystatin-informed estimate sits from a creatinine one.
+Section 14 shows all three against the same outcome; Sections 9–11 use the first two.
+
+| Variable | Definition | Scale | Used by |
+|---|---|---|---|
+| `egfr_ratio` | `CKDEPIcysindex / CKDEPIcr21index` | scale-invariant (the BSA factor cancels) | Section 9 |
+| `egfr_diff` | `CKDEPIcysindex − CKDEPIcr21index` | **indexed**, mL/min/1.73 m² — a difference is *not* scale-invariant, so the scale matters | Section 10; Section 14 Sensitivity 1 |
+| `egfr_pctdiff` | `(CKDEPIcysindex − CKDEPIcr21index) / CKDEPIcr21index × 100` | scale-invariant | Section 11; Section 14 primary |
+| `egfr_pctdiff_cg` | `(CKDEPIcrcys21non_index − CGnon_index) / CGnon_index × 100` | **absolute mL/min** (actual BSA), as specified | Section 14 Sensitivity 2; the grant figures |
+
+`egfr_pctdiff` and `egfr_pctdiff_cg` are both percentages but they are **not** the same
+quantity: the first compares CKD-EPI Cys 2012 with CKD-EPI Cr 2021, the second compares
+CKD-EPI Cr-Cys 2021 with Cockcroft-Gault creatinine clearance.
+
+### Other derived fields
+
+| Field | Source | Note |
+|---|---|---|
+| `charlson_n` | `charlson` | The source column is **character**; its only non-numeric entries are 3 blank cells, so coercing to numeric turns exactly those 3 into `NA`. Used in Table 1. |
 
 ### Computed classification fields
 
@@ -1577,7 +1793,15 @@ unadjusted association, with the smooth clipped to [0, 100]; the shaded band is 
 **Discrete markers** (ECOG, Fried) show the observed proportion per category, joined by the
 black line.
 
+The eGFR difference is then repeated under **two alternative definitions** (sensitivity
+analyses). Only the x axis changes: same cohort, same outcome, same construction, so the three
+sets are read side by side.
+
 ## eGFR % difference  (whole 1,200 cohort)
+
+**Primary definition** — (CKD-EPI Cys 2012 − CKD-EPI Cr 2021) / CKD-EPI Cr 2021, as a
+percentage. Scale-invariant: the BSA factor cancels, so indexed and actual-BSA values are
+identical.
 
 ```{r}
 #| label: carbo20-egfrdiff
@@ -1586,6 +1810,53 @@ black line.
 #| fig-height: 4.4
 emit_plots(lapply(LOESS_EQS, function(eq) overlay_plot(cl_nonindex, eq)), "carbo20-egfrdiff")
 ```
+
+## Sensitivity 1 — absolute eGFR difference  (Cys − Cr)
+
+**CKD-EPI Cys 2012 − CKD-EPI Cr 2021**, in mL/min/1.73 m² — the same discordance left
+unscaled instead of divided by the creatinine estimate. Unlike the percentage version this one
+is **not** scale-invariant, so it is taken on the indexed scale, the conventional way to read a
+difference between two equations. The dashed marker is at **0** (the two equations agree); the
+−10 % marker of the other panels is a percentage and has no counterpart here.
+
+```{r}
+#| label: carbo20-sens-absdiff
+#| results: asis
+#| fig-width: 7.5
+#| fig-height: 4.4
+emit_plots(lapply(LOESS_EQS, function(eq)
+  overlay_plot(cl_nonindex, eq, xvar = "egfr_diff", xlab = DIFF_XLAB, xlim = DIFF_XLIM,
+               binw = 5, pct_axis = FALSE, ref_at = 0,
+               xscale = tick_x(DIFF_BREAKS, pct = FALSE))),
+  "carbo20-sens-absdiff")
+```
+
+## Sensitivity 2 — eGFR % difference against Cockcroft-Gault
+
+**100 × (BSA-adjusted eGFR~cr-cys~ − Cockcroft-Gault creatinine clearance) / Cockcroft-Gault**,
+both terms in absolute mL/min. This is the discordance index the grant figures use, carried over
+unchanged including its axis window. The dashed marker is at **−10 %**, as in the primary panels.
+
+```{r}
+#| label: carbo20-sens-pctdiffcg
+#| results: asis
+#| fig-width: 7.5
+#| fig-height: 4.4
+emit_plots(lapply(LOESS_EQS, function(eq)
+  overlay_plot(cl_nonindex, eq, xvar = "egfr_pctdiff_cg", xlab = PCTD_CG_XLAB,
+               xlim = PCTD_CG_XLIM, binw = BINW, ref_at = REF_LINE,
+               xscale = tick_x(PCTD_CG_BREAKS))),
+  "carbo20-sens-pctdiffcg")
+```
+
+::: {.callout-note}
+## Reading the two creatinine panels in Sensitivity 2
+
+Sensitivity 2 measures eGFR~cr-cys~ against Cockcroft-Gault, so the **Cockcroft-Gault** panel and,
+to a lesser degree, the **CKD-EPI Cr-Cys 2021** panel are partly self-referential — the equation
+being tested also defines the x axis. The same caveat applies to the CKD-EPI Cys 2012 and
+CKD-EPI Cr 2021 panels in the primary and Sensitivity 1 sets.
+:::
 
 ## ECOG performance status  (whole 1,200 cohort)
 
@@ -1630,7 +1901,10 @@ emit_plots(lapply(LOESS_EQS, function(eq)
 
 The manuscript heatmaps. Dosing thresholds come from **`final_chemos.docx`**; every
 other section on this page uses the earlier rules, so **these tables supersede them**
-for the drugs listed below.
+for the drugs listed below. Two drugs are **not** in that document and keep their
+existing rules: **carboplatin** (dosed to a target AUC by the Calvert formula, so it has
+no threshold table) and **cisplatin** (this project's tier rule, unchanged from the
+earlier sections).
 
 Rows are the **seven** equations of the manuscript table, in its order and grouping —
 creatinine-based (including Cockcroft-Gault), then cystatin, then combined — with black
@@ -1654,7 +1928,8 @@ moving into the lowest tier is therefore not always being told to stop the drug.
 
 | Drug | Full dose | Reduced tiers | Lowest tier |
 |---|---|---|---|
-| Carboplatin (±20 % / ±15 %) | Calvert AUC 5 | — | band rule, not a threshold |
+| Carboplatin (±20 % / ±15 %) † | Calvert AUC 5 | — | band rule, not a threshold |
+| Cisplatin † | ≥60 | 50–59 → −25 %; 40–49 → −50 % | <40 avoid |
 | Pemetrexed | ≥45 | — | <45 avoid |
 | Etoposide | ≥50 | 15–50 → −25 % | <15 → −50 % |
 | Capecitabine | ≥50 | 30–50 → −25 % | <30 avoid |
@@ -1662,6 +1937,8 @@ moving into the lowest tier is therefore not always being told to stop the drug.
 | Ifosfamide | >60 | 40–60 → 75 %; 20–40 → 50 % | <20 avoid |
 | Melphalan | >60 (200 mg/m²) | — | ≤60 → 140 mg/m² |
 | Methotrexate | >60 | 45–59.99 → −25 %; 30–44.99 → −50 % | <30 avoid |
+
+† Not from `final_chemos.docx` — see above.
 
 All GFR units mL/min (non-indexed) or mL/min/1.73 m² (indexed), matched to the
 reference measured GFR on the same scale.
@@ -1679,13 +1956,46 @@ emit_final(fin_nonindex, "nonindex", "Non-indexed GFR (absolute mL/min)")
 ```
 
 
-# 16 Notes
+# 16 Table 1 — Fried frailty cohort (N = 592)
+
+Baseline characteristics of the **592 patients with a Fried frailty class**, stratified by that
+class. The **n** column is how many of the 592 have that variable observed — body composition
+(465 cohort) and nutrition (689 cohort) overlap only partly with the Fried cohort, so those rows
+are smaller.
+
+- **Continuous rows** — mean (SD), or median [IQR] where marked by the row label’s units being
+  skewed (Charlson, CRP). Test: **Kruskal-Wallis** across the three classes.
+- **Categorical rows** — n (%) within each class. Test: **chi-square**, or **Fisher’s exact**
+  (Monte Carlo, 20,000 replicates) when any expected count is below 5. A multi-level variable
+  carries one p-value on its header row.
+
+::: {.callout-warning}
+## The Fried cohort is not a random subset
+
+Fried assessment had an **age ≥ 60 eligibility criterion**: 0 of the 595 patients under 60 were
+assessed, against 97–99 % of those 60 and over. The 592 are therefore older and sicker than the
+cohort as a whole (mean age 69.1 vs 48.7 years, measured GFR 70.6 vs 91.8 mL/min/1.73 m²). Read
+this table as describing *who was assessed*, not as a sample of the 1,200.
+:::
+
+```{r}
+#| label: table1-fried
+#| results: asis
+.t1 <- build_table1()
+.t1_ft <- table1_ft(.t1)
+save_ft_docx(.t1_ft, "table1_fried592")
+cat(flextable::flextable_to_rmd(.t1_ft)); cat("\n\n")
+cat("[📄 Download Table 1 as Word](../tables/heatmap/table1_fried592.docx)\n\n")
+```
+
+
+# 17 Notes
 
 - **Reference.** Measured GFR (⁵¹Cr-EDTA) is the gold standard; each equation is compared to mGFR on
   the matching scale (indexed vs indexed, non-indexed vs non-indexed).
-- **Scale.** Calvert carboplatin dosing was derived on **absolute (non-indexed)** GFR (Section 4 is
-  the clinically conventional view for carboplatin); indexed GFR (Section 3) is the conventional
-  scale for CKD-staging cutoffs.
+- **Scale.** Calvert carboplatin dosing was derived on **absolute (non-indexed)** GFR, so the
+  non-indexed tables are the clinically conventional view for carboplatin; indexed GFR is the
+  conventional scale for CKD-staging cutoffs.
 - **Direction.** Creatinine-based equations tend to **overdose** (they overestimate GFR, especially
   at low BMI / low muscle mass); cystatin-based equations tend to **underdose**.
 - **Counterfactual.** No administered doses exist in this file, so every drug rule is applied to all

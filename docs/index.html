@@ -186,7 +186,7 @@ window.Quarto = {
 <p>The analysis asks: <em>if chemotherapy were dosed from each estimated-GFR (eGFR) equation instead of measured GFR, how often would patients be over- or under-dosed?</em> Every comparison is run on both the <strong>indexed</strong> (mL/min/1.73 m²) and <strong>non-indexed</strong> (absolute mL/min) GFR scale, with measured GFR as the reference throughout.</p>
 <p>Two views of that question:</p>
 <ul>
-<li><p><strong>Dosing Heatmaps</strong> — the full exploratory grid: every equation × drug × subgroup, as heatmaps, plus LOESS sets against several kidney-function contrasts.</p></li>
+<li><p><strong>Dosing Heatmaps</strong> — the full exploratory grid: every equation × drug × subgroup, as heatmaps, plus LOESS sets against several kidney-function contrasts, the carboplatin ±20 % panels (with three definitions of eGFR difference), the manuscript heatmaps, and Table 1 for the Fried frailty cohort.</p></li>
 <li><p><strong><a href="https://tianqi-ouyang.github.io/Grant-/qmd/leyre_grant.html">Grant figures</a></strong> — a focused cut for the grant: carboplatin only, plotted against the eGFR<sub>cr-cys</sub> / Cockcroft-Gault discordance index, with the cohort distribution and an overdose-threshold breakdown by frailty and cachexia. This page now lives on the separate <strong>Grant</strong> site, alongside the Sherley carboplatin figures that use the same index.</p></li>
 <li><p><a href="./qmd/dosing_heatmap.html"><strong>Dosing Heatmaps →</strong></a></p></li>
 <li><p><a href="https://tianqi-ouyang.github.io/Grant-/qmd/leyre_grant.html"><strong>Grant figures →</strong></a> — carboplatin overdose risk vs the eGFR<sub>cr-cys</sub> / Cockcroft-Gault discordance index. <em>Moved to the separate Grant site on 2026-09-29; the codebook below still documents it.</em></p></li>
@@ -197,7 +197,8 @@ window.Quarto = {
 </section>
 <section id="drugs" class="level3">
 <h3 class="anchored" data-anchor-id="drugs">Drugs</h3>
-<p>Carboplatin (Calvert AUC 5) · Cisplatin · Methotrexate · Melphalan</p>
+<p><strong>Exploratory sections</strong> — Carboplatin (Calvert AUC 5) · Cisplatin · Methotrexate · Melphalan.</p>
+<p><strong>Final heatmaps</strong> (the manuscript tables) — the same carboplatin and cisplatin plus the seven drugs of <code>final_chemos.docx</code>: Pemetrexed · Etoposide · Capecitabine · Bleomycin · Ifosfamide · Melphalan · Methotrexate. Those thresholds supersede the earlier rules; carboplatin and cisplatin are not in that document and keep their existing rules.</p>
 <p>Carboplatin overdose is defined against a tolerance band: <strong>±15 % and ±20 %</strong> on the Dosing Heatmaps page, and <strong>≥10 %, ≥15 % and ≥20 %</strong> on the Grant page.</p>
 </section>
 </section>

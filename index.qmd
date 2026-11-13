@@ -15,7 +15,9 @@ scale, with measured GFR as the reference throughout.
 Two views of that question:
 
 - **Dosing Heatmaps** — the full exploratory grid: every equation × drug × subgroup, as
-  heatmaps, plus LOESS sets against several kidney-function contrasts.
+  heatmaps, plus LOESS sets against several kidney-function contrasts, the carboplatin ±20 %
+  panels (with three definitions of eGFR difference), the manuscript heatmaps, and Table 1 for
+  the Fried frailty cohort.
 - **[Grant figures](https://tianqi-ouyang.github.io/Grant-/qmd/leyre_grant.html)** — a focused cut for the grant: carboplatin only, plotted
   against the eGFR~cr-cys~ / Cockcroft-Gault discordance index, with the cohort distribution
   and an overdose-threshold breakdown by frailty and cachexia. This page now lives on the
@@ -33,7 +35,12 @@ EKFC Cr · EKFC Cys · EKFC Cr-Cys · CKD-EPI 4-marker
 
 ### Drugs
 
-Carboplatin (Calvert AUC 5) · Cisplatin · Methotrexate · Melphalan
+**Exploratory sections** — Carboplatin (Calvert AUC 5) · Cisplatin · Methotrexate · Melphalan.
+
+**Final heatmaps** (the manuscript tables) — the same carboplatin and cisplatin plus the seven
+drugs of `final_chemos.docx`: Pemetrexed · Etoposide · Capecitabine · Bleomycin ·
+Ifosfamide · Melphalan · Methotrexate. Those thresholds supersede the earlier rules;
+carboplatin and cisplatin are not in that document and keep their existing rules.
 
 Carboplatin overdose is defined against a tolerance band: **±15 % and ±20 %** on the
 Dosing Heatmaps page, and **≥10 %, ≥15 % and ≥20 %** on the Grant page.
