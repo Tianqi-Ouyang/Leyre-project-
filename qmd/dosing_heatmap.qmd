@@ -980,6 +980,8 @@ t1_bin <- function(d, flag, label) {
          c(list(t1_n_pct(f)), lapply(T1_LEVELS, function(l) t1_n_pct(f[g == l]))),
          t1_p_tab(table(f, g)))
 }
+# Factor labels in `dat` are stored ASCII (">=30"); print them properly.
+t1_lab <- function(x) sub("^>=", "\u2265", x)
 # A categorical variable: a header row carrying the one p-value for the whole
 # variable, then one indented row per level.
 t1_cat <- function(d, var, label) {
@@ -989,7 +991,7 @@ t1_cat <- function(d, var, label) {
     t1_row(label, length(v), as.list(rep("", 4)), t1_p_tab(table(v, g))),
     purrr::map_dfr(levels(v), function(l) {
       f <- v == l
-      t1_row(paste0(T1_IND, l), NA_integer_,
+      t1_row(paste0(T1_IND, t1_lab(l)), NA_integer_,
              c(list(t1_n_pct(f)), lapply(T1_LEVELS, function(k) t1_n_pct(f[g == k]))))
     }))
 }
