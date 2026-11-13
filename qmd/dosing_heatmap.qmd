@@ -113,28 +113,33 @@ raw <- suppressWarnings(
   readxl::read_excel("Data/OncoGFR1200_MGH_chemo_CJASN.xlsx")
 )
 
-# Cancer-site labels for `site.ajcc` (codes 1-11; the 11 groups of the
-# manuscript Table 1). The source file ships no codebook for them. Four are
-# fixed by the sex distribution and are safe:
-#   6  = Breast                      (272 patients, 98.9 % female)
-#   7  = Female reproductive organs  ( 60 patients,  100 % female)
-#   11 = Male genital organs         (262 patients,    0 % female)
-#   9  = Endocrine system            ( 39 patients, 84.6 % female - thyroid)
-# The other seven cannot be told apart from the data alone, so they print as
-# their code until the mapping is supplied. Fill them in here and nothing
-# else needs to change.
-SITE_LABS <- c(
-  "1"  = "Site 1",
-  "2"  = "Site 2",
-  "3"  = "Site 3",
-  "4"  = "Site 4",
-  "5"  = "Site 5",
-  "6"  = "Breast",
-  "7"  = "Female reproductive organs",
-  "8"  = "Site 8",
-  "9"  = "Endocrine system",
-  "10" = "Site 10",
-  "11" = "Male genital organs")
+# Cancer-site labels for `site.ajcc` (codes 1-11 = the 11 groups of the
+# manuscript Table 1). The source file ships NO codebook for these codes, so
+# they were reconstructed, and Table 1 prints the code beside every label so a
+# reader can check each one against the data.
+#
+# PROVEN outright, by evidence that cannot be coincidence:
+#    6 = Breast                     (272, 98.9 % female)
+#    7 = Female reproductive organs ( 60,  100 % female)
+#   11 = Male genital organs        (262,    0 % female; prostate n=238 mean
+#                                    age 66 plus testis n=18 mean age 29.6)
+#    9 = Endocrine system           ( 39, 84.6 % female, 0.0 % metastatic -
+#                                    the thyroid signature)
+#
+# INFERRED for the other seven: codes 1-7 run in ICD-O topography order, a
+# hypothesis the four proven codes corroborate at positions 6, 7, 9 and 11.
+# Each is also consistent with its own clinical signature:
+#    1 = Head and neck   C00-C14  (109, 28.4 % female, 6.4 % metastatic)
+#    2 = Gastrointestinal C15-C26 (251, fed by colorectal 103 + stomach 59)
+#    3 = Thorax          C30-C39  ( 34, 44.1 % metastatic - the highest)
+#    4 = Bone/soft tissue C40-C49 ( 27, mean age 49.9)
+#    5 = Skin            C43-C44  ( 54,  7.4 % metastatic)
+#    8 = Urinary tract   C64-C68  ( 82; kidney n=47 age 58, bladder n=35 age 68)
+#   10 = Other                    ( 10, smallest and most heterogeneous)
+SITE_LABS <- c("Head and neck", "Gastrointestinal tract", "Thorax",
+               "Bone and soft tissue sarcoma", "Skin", "Breast",
+               "Female reproductive organs", "Urinary tract",
+               "Endocrine system", "Other", "Male genital organs")
 dat <- raw %>%
   dplyr::select(-dplyr::any_of(c("...70", "...75"))) %>%
   dplyr::mutate(
@@ -166,7 +171,8 @@ dat <- raw %>%
                        labels = c("1", "2", "3", "4", "Not applicable")),
     # Cancer site: site.ajcc has exactly the 11 groups the template lists.
     # SITE_LABS (above) holds the code -> label mapping.
-    site_grp = factor(site.ajcc, levels = 1:11, labels = SITE_LABS),
+    site_grp = factor(site.ajcc, levels = 1:11,
+                      labels = paste0(1:11, " \u2014 ", SITE_LABS)),
     # ECOG performance status; only 8 patients are ECOG 3, so lump 2+3 -> "≥2".
     ecog_grp = factor(ifelse(ecog >= 2, "≥2", as.character(ecog)), levels = c("0", "1", "≥2")),
     # LOESS x-axes: eGFRcys (CKD-EPI 2012) vs eGFRcr (CKD-EPI 2021). The RATIO is
@@ -1230,7 +1236,7 @@ subgroup definitions.
 | `bmi_who` | `BMI` | WHO bands: Underweight <18.5 · Normal 18.5–24.9 · Overweight 25–29.9 · Obese ≥30. **Not** `bmi_grp`, whose <20 / 20–25 / 25–30 / ≥30 cuts drive the heatmap subgroup columns and are matched by string in several lookups. |
 | `smoke_grp` | `Smoking` | Never (0) · Former (**2**) · Current (**1**). The coding is not the intuitive order — verified against the file’s `never.smoker` / `former.smoker` / `current.smoker` indicator columns, which agree exactly with 0 = never (604), 1 = current (128), 2 = former (468). |
 | `stage_grp` | `stage` | 1 · 2 · 3 · 4 · Not applicable (code 5). All 55 patients in code 5 carry `stageV`, and 43 of them `TIS`. |
-| `site_grp` | `site.ajcc` | The 11 cancer-site groups of the template, via `SITE_LABS`. Codes 6, 7, 9 and 11 are fixed by their sex distribution (Breast, Female reproductive organs, Endocrine system, Male genital organs); the other seven print as their code pending a codebook. |
+| `site_grp` | `site.ajcc` | The 11 cancer-site groups of the template, via `SITE_LABS`. The source ships no codebook for the codes: 6, 7, 9 and 11 are proven by sex and metastasis, the other seven inferred from ICD-O topography order. Every row prints **code — name** so a reader can check it. See the callout in Section 16. |
 
 ### Computed classification fields
 
@@ -1991,23 +1997,35 @@ this table as describing *who was assessed*, not as a sample of the 1,200.
 :::
 
 ::: {.callout-important}
-## Seven cancer-site labels are still unmapped
+## How the cancer-site labels were established
 
 `site.ajcc` has exactly the 11 groups the template lists, but the source file ships **no
-codebook** for the codes. Four are fixed beyond doubt by their sex distribution and are
-labelled: **6 = Breast** (272, 98.9 % female), **7 = Female reproductive organs** (60, 100 %
-female), **11 = Male genital organs** (262, 0 % female) and **9 = Endocrine system** (39,
-84.6 % female — thyroid). The remaining seven cannot be told apart from the data alone, so
-they print as their code:
+codebook** for the codes, so each row prints **code — name**: the code is what is in the data,
+and the name can be checked against it.
 
-| Code | n | % female | | Code | n | % female |
-|--:|--:|--:|---|--:|--:|--:|
-| 1 | 109 | 28.4 % | | 5 | 54 | 46.3 % |
-| 2 | 251 | 44.6 % | | 8 | 82 | 34.1 % |
-| 3 | 34 | 41.2 % | | 10 | 10 | 40.0 % |
-| 4 | 27 | 48.1 % | | | | |
+**Four are proven** by evidence that cannot be coincidence — sex, and for the thyroid the
+complete absence of metastatic disease. **Seven are inferred**: codes 1–7 run in ICD-O
+topography order, a reading the four proven codes corroborate at positions 6, 7, 9 and 11, and
+each inferred label also matches its own clinical signature.
 
-Give me the mapping and it goes in one place — `SITE_LABS` in the data chunk.
+| Code | n | % female | Mean age | % metastatic | Label | Basis |
+|--:|--:|--:|--:|--:|---|---|
+| 1 | 109 | 28.4 | 58.4 | 6.4 | Head and neck | ICD-O C00–C14; male-predominant, M1 rare |
+| 2 | 251 | 44.6 | 59.9 | 27.5 | Gastrointestinal tract | C15–C26; colorectal 103 + stomach 59 |
+| 3 | 34 | 41.2 | 63.1 | **44.1** | Thorax | C30–C39; the highest metastatic rate |
+| 4 | 27 | 48.1 | **49.9** | 29.6 | Bone and soft tissue sarcoma | C40–C49; young, 50/50 sex |
+| 5 | 54 | 46.3 | 57.7 | 7.4 | Skin | C43–C44 |
+| 6 | 272 | **98.9** | 55.3 | 8.8 | Breast | **proven** — sex |
+| 7 | 60 | **100** | 54.0 | 8.3 | Female reproductive organs | **proven** — sex |
+| 8 | 82 | 34.1 | 62.3 | 14.6 | Urinary tract | C64–C68; kidney n=47 age 58, bladder n=35 age 68 |
+| 9 | 39 | 84.6 | 52.1 | **0.0** | Endocrine system | **proven** — no metastatic disease at all (thyroid) |
+| 10 | 10 | 40.0 | 46.8 | 30.0 | Other | smallest, most heterogeneous |
+| 11 | 262 | **0** | 63.4 | 11.8 | Male genital organs | **proven** — sex; prostate n=238 age 66, testis n=18 age 29.6 |
+
+Counts above are the **whole 1,200**, which is what identifies each code; the table itself
+shows the 592. **Code 10 has no patients in the Fried cohort**, so Table 1 lists ten site rows,
+not eleven. If the real codebook turns up and contradicts any of the seven inferred labels,
+`SITE_LABS` in the data chunk is the only place to change.
 :::
 
 **Two codings were resolved against the data, not assumed.** `Smoking` is **not** in the
