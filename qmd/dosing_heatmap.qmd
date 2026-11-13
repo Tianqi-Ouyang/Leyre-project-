@@ -112,6 +112,29 @@ Every other section's code is likewise available under its own **▸ Code** butt
 raw <- suppressWarnings(
   readxl::read_excel("Data/OncoGFR1200_MGH_chemo_CJASN.xlsx")
 )
+
+# Cancer-site labels for `site.ajcc` (codes 1-11; the 11 groups of the
+# manuscript Table 1). The source file ships no codebook for them. Four are
+# fixed by the sex distribution and are safe:
+#   6  = Breast                      (272 patients, 98.9 % female)
+#   7  = Female reproductive organs  ( 60 patients,  100 % female)
+#   11 = Male genital organs         (262 patients,    0 % female)
+#   9  = Endocrine system            ( 39 patients, 84.6 % female - thyroid)
+# The other seven cannot be told apart from the data alone, so they print as
+# their code until the mapping is supplied. Fill them in here and nothing
+# else needs to change.
+SITE_LABS <- c(
+  "1"  = "Site 1",
+  "2"  = "Site 2",
+  "3"  = "Site 3",
+  "4"  = "Site 4",
+  "5"  = "Site 5",
+  "6"  = "Breast",
+  "7"  = "Female reproductive organs",
+  "8"  = "Site 8",
+  "9"  = "Endocrine system",
+  "10" = "Site 10",
+  "11" = "Male genital organs")
 dat <- raw %>%
   dplyr::select(-dplyr::any_of(c("...70", "...75"))) %>%
   dplyr::mutate(
@@ -122,10 +145,28 @@ dat <- raw %>%
     met_grp = factor(metastasis, levels = c(0, 1),
                      labels = c("Not metastatic", "Metastatic")),
     age_grp = factor(ifelse(age >= 70, ">=70", "<70"), levels = c("<70", ">=70")),
-    # charlson arrives as a CHARACTER column; its only non-numeric entries are
-    # 3 blank cells, every other value being an integer 1-19, so coercing turns
-    # exactly those 3 into NA and nothing else.
-    charlson_n = suppressWarnings(as.numeric(charlson)),
+    age65 = age >= 65,
+    # WHO BMI bands, for Table 1 only. Deliberately NOT bmi_grp, whose
+    # <20 / 20-25 / 25-30 / >=30 cuts are the ones the heatmap subgroup
+    # columns use and are matched by string in several lookups.
+    bmi_who = cut(BMI, breaks = c(-Inf, 18.5, 25, 30, Inf), right = FALSE,
+                  labels = c("Underweight (<18.5 kg/m\u00b2)",
+                             "Normal range (18.5-24.9 kg/m\u00b2)",
+                             "Overweight (25-29.9 kg/m\u00b2)",
+                             "Obese (\u226530 kg/m\u00b2)")),
+    # Smoking is NOT coded in the intuitive order. Checked against the file's
+    # own never./former./current.smoker indicator columns: 0 = never (604),
+    # 1 = CURRENT (128), 2 = FORMER (468). Levels are then set to the
+    # never/former/current reading order.
+    smoke_grp = factor(c("Never", "Current", "Former")[match(Smoking, c(0, 1, 2))],
+                       levels = c("Never", "Former", "Current")),
+    # stage 5 has stageV = 1 for all 55 of its patients (and TIS for 43 of
+    # them), i.e. the unstageable band the template calls "Not applicable".
+    stage_grp = factor(stage, levels = 1:5,
+                       labels = c("1", "2", "3", "4", "Not applicable")),
+    # Cancer site: site.ajcc has exactly the 11 groups the template lists.
+    # SITE_LABS (above) holds the code -> label mapping.
+    site_grp = factor(site.ajcc, levels = 1:11, labels = SITE_LABS),
     # ECOG performance status; only 8 patients are ECOG 3, so lump 2+3 -> "≥2".
     ecog_grp = factor(ifelse(ecog >= 2, "≥2", as.character(ecog)), levels = c("0", "1", "≥2")),
     # LOESS x-axes: eGFRcys (CKD-EPI 2012) vs eGFRcr (CKD-EPI 2021). The RATIO is
@@ -926,26 +967,27 @@ emit_mcg <- function(cl, version, scale, scale_label) {
 
 # ===== TABLE 1 — Fried frailty cohort ======================================
 # Baseline characteristics of the 592 patients who have a Fried class,
-# stratified by that class. Tests: Kruskal-Wallis across the three classes for
-# continuous rows (no normality assumed, and several of these are skewed);
+# stratified by that class. Row set and row order follow the manuscript
+# template exactly. Tests: Kruskal-Wallis across the three classes for
+# continuous rows (no normality assumed; several of these are skewed), and
 # chi-square for categorical rows, or Fisher's exact (Monte Carlo) when any
-# expected count is < 5. The "n" column is how many of the 592 have that
-# variable observed — body composition and nutrition were measured on subsets,
-# so those rows are not 592.
+# expected count is below 5. A multi-level variable carries one p-value, on
+# its header row. Every variable in this table is complete in the source
+# file, so there is no "n observed" column.
 T1_LEVELS <- c("Non-frail", "Pre-frail", "Frail")
-T1_IND    <- strrep(" ", 4)   # indent for the levels of a categorical row
+T1_IND    <- strrep("\u00A0", 4)   # indent for the levels of a categorical row
 
 t1_mean_sd <- function(x, digits = 1) {
   if (!length(x)) return("—")
   sprintf("%.*f (%.*f)", digits, mean(x), digits, stats::sd(x))
 }
-t1_msd2    <- function(x) t1_mean_sd(x, 2)   # labs and Z-scores need 2 dp
 t1_med_iqr <- function(x, digits = 1) {
   if (!length(x)) return("—")
   q <- stats::quantile(x, c(0.25, 0.5, 0.75))
   sprintf("%.*f [%.*f–%.*f]", digits, q[[2]], digits, q[[1]], digits, q[[3]])
 }
-t1_med_iqr0 <- function(x) t1_med_iqr(x, 0)  # integer scores
+t1_msd2 <- function(x) t1_mean_sd(x, 2)
+t1_mi2  <- function(x) t1_med_iqr(x, 2)
 t1_n_pct <- function(f) {
   n <- sum(!is.na(f)); if (!n) return("—")
   k <- sum(f, na.rm = TRUE); sprintf("%d (%.1f%%)", k, k / n * 100)
@@ -956,131 +998,93 @@ t1_p_tab <- function(tab) {
   if (any(ex < 5)) stats::fisher.test(tab, simulate.p.value = TRUE, B = 20000)$p.value
   else suppressWarnings(stats::chisq.test(tab)$p.value)
 }
-t1_row <- function(label, n, vals, p = NA_real_, hdr = FALSE) {
-  tibble::tibble(label = label, n = n, Overall = vals[[1]],
+# `lvl = TRUE` marks an indented level of a categorical variable; those print
+# unbolded, everything else bold.
+t1_row <- function(label, vals, p = NA_real_, lvl = FALSE) {
+  tibble::tibble(label = label, Overall = vals[[1]],
                  `Non-frail` = vals[[2]], `Pre-frail` = vals[[3]], Frail = vals[[4]],
-                 p = p, hdr = hdr)
+                 p = p, lvl = lvl)
 }
-t1_section <- function(label) t1_row(label, NA_integer_, as.list(rep("", 4)), hdr = TRUE)
-
-# One continuous row; `fmt` is t1_mean_sd or t1_med_iqr.
-t1_cont <- function(d, var, label, fmt = t1_mean_sd) {
+# One continuous row; `fmt` is t1_mean_sd, t1_med_iqr or a fixed-digit variant.
+t1_cont <- function(d, var, label, fmt = t1_med_iqr) {
   x  <- d[[var]]; g <- d$fried_grp
   ok <- !is.na(x) & !is.na(g)
   x  <- x[ok]; g <- factor(g[ok], levels = T1_LEVELS)
   p  <- if (nlevels(droplevels(g)) > 1) stats::kruskal.test(x, g)$p.value else NA_real_
-  t1_row(label, length(x),
-         c(list(fmt(x)), lapply(T1_LEVELS, function(l) fmt(x[g == l]))), p)
+  t1_row(label, c(list(fmt(x)), lapply(T1_LEVELS, function(l) fmt(x[g == l]))), p)
 }
 # One binary row from a logical vector aligned to `d`.
 t1_bin <- function(d, flag, label) {
   g  <- d$fried_grp; ok <- !is.na(flag) & !is.na(g)
   f  <- flag[ok]; g <- factor(g[ok], levels = T1_LEVELS)
-  t1_row(label, length(f),
-         c(list(t1_n_pct(f)), lapply(T1_LEVELS, function(l) t1_n_pct(f[g == l]))),
+  t1_row(label, c(list(t1_n_pct(f)), lapply(T1_LEVELS, function(l) t1_n_pct(f[g == l]))),
          t1_p_tab(table(f, g)))
 }
-# Factor labels in `dat` are stored ASCII (">=30"); print them properly.
-t1_lab <- function(x) sub("^>=", "\u2265", x)
 # A categorical variable: a header row carrying the one p-value for the whole
 # variable, then one indented row per level.
 t1_cat <- function(d, var, label) {
   v  <- d[[var]]; g <- d$fried_grp; ok <- !is.na(v) & !is.na(g)
   v  <- droplevels(factor(v[ok])); g <- factor(g[ok], levels = T1_LEVELS)
   dplyr::bind_rows(
-    t1_row(label, length(v), as.list(rep("", 4)), t1_p_tab(table(v, g))),
+    t1_row(label, as.list(rep("", 4)), t1_p_tab(table(v, g))),
     purrr::map_dfr(levels(v), function(l) {
       f <- v == l
-      t1_row(paste0(T1_IND, t1_lab(l)), NA_integer_,
-             c(list(t1_n_pct(f)), lapply(T1_LEVELS, function(k) t1_n_pct(f[g == k]))))
+      t1_row(paste0(T1_IND, l),
+             c(list(t1_n_pct(f)), lapply(T1_LEVELS, function(k) t1_n_pct(f[g == k]))),
+             lvl = TRUE)
     }))
 }
-# Carboplatin +/-20 % overdose rate for one equation, read off the long
-# classification table (which already carries fried_grp).
-t1_over <- function(cl, eq, label, drug_id = "carboplatin_b20") {
-  d <- cl %>% dplyr::filter(equation == eq, drug == drug_id,
-                            !is.na(cls), !is.na(fried_grp))
-  f <- d$cls == "Overdose"; g <- factor(d$fried_grp, levels = T1_LEVELS)
-  t1_row(label, length(f),
-         c(list(t1_n_pct(f)), lapply(T1_LEVELS, function(l) t1_n_pct(f[g == l]))),
-         t1_p_tab(table(f, g)))
-}
 
-build_table1 <- function(data = dat, cl = cl_nonindex) {
-  d <- data %>% dplyr::filter(!is.na(fried_grp))
-  dplyr::bind_rows(
-    t1_section("Demographics"),
-    t1_cont(d, "age", "Age, years"),
-    t1_bin(d, d$sex == "Female", "Female"),
-    t1_cont(d, "BMI", "Body mass index, kg/m²"),
-    t1_cat(d, "bmi_grp", "BMI category"),
-    t1_cont(d, "BSA", "Body surface area, m²", t1_msd2),
-
-    t1_section("Cancer and comorbidity"),
-    t1_bin(d, d$met_grp == "Metastatic", "Metastatic disease"),
-    t1_cat(d, "ecog_grp", "ECOG performance status"),
-    t1_cont(d, "charlson_n", "Charlson comorbidity index", t1_med_iqr0),
-    t1_bin(d, d$hypertension == 1, "Hypertension"),
-    t1_bin(d, d$diabetes == 1, "Diabetes"),
-
-    t1_section("Laboratory"),
-    t1_cont(d, "Cr", "Creatinine, mg/dL", t1_msd2),
-    t1_cont(d, "CysC", "Cystatin C, mg/L", t1_msd2),
-    t1_cont(d, "Alb", "Albumin, g/dL"),
-    t1_cont(d, "Hb", "Haemoglobin, g/dL"),
-    t1_cont(d, "CRP", "C-reactive protein, mg/L", t1_med_iqr),
-
-    t1_section("Kidney function, indexed (mL/min/1.73 m²)"),
-    t1_cont(d, "mGFRindex", "Measured GFR (⁵¹Cr-EDTA)"),
-    t1_cont(d, "CKDEPIcr21index", "CKD-EPI Cr 2021"),
-    t1_cont(d, "CKDEPIcysindex", "CKD-EPI Cys 2012"),
-    t1_cont(d, "CKDEPIcrcys21index", "CKD-EPI Cr-Cys 2021"),
-    t1_cont(d, "CGindex", "Cockcroft-Gault"),
-
-    t1_section("eGFR discordance (the three Section 14 definitions)"),
-    t1_cont(d, "egfr_pctdiff", "(Cys − Cr) / Cr, %"),
-    t1_cont(d, "egfr_diff", "Cys − Cr, mL/min/1.73 m²"),
-    t1_cont(d, "egfr_pctdiff_cg", "(Cr-Cys − CG) / CG, % (actual BSA)"),
-
-    t1_section("Body composition and nutrition (measured in subsets)"),
-    t1_bin(d, d$sarc_grp == "Sarcopenic", "Sarcopenic (Prado)"),
-    t1_cont(d, "muscle_z", "Muscle Z-score (L3 SMI)", t1_msd2),
-    t1_bin(d, d$cachexia_grp == "Yes", "Cachexia"),
-
-    t1_section("Carboplatin ±20 % overdose vs measured GFR (actual BSA)"),
-    t1_over(cl, "CKDEPIcr21",    "CKD-EPI Cr 2021"),
-    t1_over(cl, "CG",            "Cockcroft-Gault"),
-    t1_over(cl, "CKDEPIcrcys21", "CKD-EPI Cr-Cys 2021"),
-    t1_over(cl, "CKDEPIcys",     "CKD-EPI Cys 2012"))
-}
-
-# Render Table 1: section rows bold on grey, column N in the header, p-values
-# to three decimals.
-table1_ft <- function(tb, data = dat) {
+build_table1 <- function(data = dat) {
   d  <- data %>% dplyr::filter(!is.na(fried_grp))
-  nn <- c(Overall = nrow(d), table(d$fried_grp)[T1_LEVELS])
-  sec <- which(tb$hdr)
+  g  <- factor(d$fried_grp, levels = T1_LEVELS)
+  nn <- c(nrow(d), as.integer(table(g)[T1_LEVELS]))
+  dplyr::bind_rows(
+    t1_row("N", as.list(format(nn, big.mark = ","))),
+    t1_bin(d, d$sex == "Male", "Males (n, %)"),
+    t1_cont(d, "age", "Age (mean (SD))", t1_mean_sd),
+    t1_bin(d, d$age65, "≥65 years (n, %)"),
+    t1_cont(d, "weight", "Weight in kg (median [IQR])"),
+    t1_cont(d, "height", "Height in cm (median [IQR])"),
+    t1_cont(d, "BSA", "BSA m² (median [IQR])", t1_mi2),
+    t1_cont(d, "BMI", "BMI kg/m² (median [IQR])"),
+    t1_cat(d, "bmi_who", "BMI category (n, %)"),
+    t1_cat(d, "smoke_grp", "Smoking status (n, %)"),
+    t1_bin(d, d$hypertension == 1, "Hypertension (n, %)"),
+    t1_bin(d, d$diabetes == 1, "Diabetes (n, %)"),
+    t1_cont(d, "Hb", "Hemoglobin g/dL (median [IQR])"),
+    t1_cont(d, "Alb", "Serum albumin g/dL (median [IQR])"),
+    t1_cont(d, "CRP", "CRP mg/L (median [IQR])"),
+    t1_cont(d, "mGFRindex", "mGFRadj mL/min per 1.73 m² (mean (SD))", t1_mean_sd),
+    t1_cont(d, "Cr", "Creatinine mg/dL (median [IQR])", t1_mi2),
+    t1_cont(d, "CysC", "Cystatin C mg/L (median [IQR])", t1_mi2),
+    t1_cat(d, "site_grp", "Cancer site (n, %)"),
+    t1_cat(d, "stage_grp", "Cancer stage (%)"),
+    t1_bin(d, d$met_grp == "Metastatic", "Metastatic disease"),
+    t1_cat(d, "ecog_grp", "ECOG performance status (%)"))
+}
+
+# Render Table 1: bold every variable label, leave the indented levels plain,
+# rule between rows, p-values to three decimals.
+table1_ft <- function(tb) {
+  thin <- officer::fp_border(color = "#BFBFBF", width = 0.5)
+  blk  <- officer::fp_border(color = "black", width = 1.5)
   body <- tb %>%
-    dplyr::mutate(
-      n = ifelse(is.na(n), "", as.character(n)),
-      p = dplyr::case_when(is.na(p) ~ "", p < 0.001 ~ "<0.001",
-                           TRUE ~ sprintf("%.3f", p))) %>%
-    dplyr::select(-hdr)
+    dplyr::mutate(p = dplyr::case_when(is.na(p) ~ "", p < 0.001 ~ "<0.001",
+                                       TRUE ~ sprintf("%.3f", p))) %>%
+    dplyr::select(-lvl)
   ft <- flextable::flextable(body)
-  ft <- flextable::set_header_labels(ft, values = stats::setNames(
-    as.list(c("Characteristic", "n", paste0(c("Overall", T1_LEVELS),
-                                            "\nN = ", nn), "p")),
-    c("label", "n", "Overall", T1_LEVELS, "p")))
-  ft <- flextable::bold(ft, i = sec, part = "body")
-  ft <- flextable::bg(ft, i = sec, bg = "#EFEFEF", part = "body")
-  ft <- flextable::align(ft, j = c("n", "Overall", T1_LEVELS, "p"),
+  ft <- flextable::set_header_labels(ft, values = list(
+    label = "Characteristic", Overall = "Overall",
+    `Non-frail` = "Non-frail", `Pre-frail` = "Pre-frail", Frail = "Frail", p = "p"))
+  ft <- flextable::bold(ft, i = which(!tb$lvl), j = "label", part = "body")
+  ft <- flextable::align(ft, j = c("Overall", T1_LEVELS, "p"),
                          align = "center", part = "all")
   ft <- flextable::align(ft, j = "label", align = "left", part = "all")
   ft <- flextable::bold(ft, part = "header")
-  ft <- flextable::hline_bottom(ft,
-          border = officer::fp_border(color = "black", width = 1.5), part = "header")
+  ft <- flextable::hline(ft, border = thin, part = "body")
+  ft <- flextable::hline_bottom(ft, border = blk, part = "header")
   ft <- flextable::fontsize(ft, size = 9, part = "all")
-  ft <- flextable::line_spacing(ft, space = 1.5, part = "header")
   flextable::set_table_properties(ft, layout = "autofit", width = 1)
 }
 ```
@@ -1215,11 +1219,18 @@ Section 14 shows all three against the same outcome; Sections 9–11 use the fir
 quantity: the first compares CKD-EPI Cys 2012 with CKD-EPI Cr 2021, the second compares
 CKD-EPI Cr-Cys 2021 with Cockcroft-Gault creatinine clearance.
 
-### Other derived fields
+### Table 1 fields (Section 16)
 
-| Field | Source | Note |
+Derived only for Table 1, which follows the manuscript template rather than this page’s
+subgroup definitions.
+
+| Field | Source | Definition |
 |---|---|---|
-| `charlson_n` | `charlson` | The source column is **character**; its only non-numeric entries are 3 blank cells, so coercing to numeric turns exactly those 3 into `NA`. Used in Table 1. |
+| `age65` | `age` | `age >= 65`. |
+| `bmi_who` | `BMI` | WHO bands: Underweight <18.5 · Normal 18.5–24.9 · Overweight 25–29.9 · Obese ≥30. **Not** `bmi_grp`, whose <20 / 20–25 / 25–30 / ≥30 cuts drive the heatmap subgroup columns and are matched by string in several lookups. |
+| `smoke_grp` | `Smoking` | Never (0) · Former (**2**) · Current (**1**). The coding is not the intuitive order — verified against the file’s `never.smoker` / `former.smoker` / `current.smoker` indicator columns, which agree exactly with 0 = never (604), 1 = current (128), 2 = former (468). |
+| `stage_grp` | `stage` | 1 · 2 · 3 · 4 · Not applicable (code 5). All 55 patients in code 5 carry `stageV`, and 43 of them `TIS`. |
+| `site_grp` | `site.ajcc` | The 11 cancer-site groups of the template, via `SITE_LABS`. Codes 6, 7, 9 and 11 are fixed by their sex distribution (Breast, Female reproductive organs, Endocrine system, Male genital organs); the other seven print as their code pending a codebook. |
 
 ### Computed classification fields
 
@@ -1961,15 +1972,14 @@ emit_final(fin_nonindex, "nonindex", "Non-indexed GFR (absolute mL/min)")
 # 16 Table 1 — Fried frailty cohort (N = 592)
 
 Baseline characteristics of the **592 patients with a Fried frailty class**, stratified by that
-class. The **n** column is how many of the 592 have that variable observed — body composition
-(465 cohort) and nutrition (689 cohort) overlap only partly with the Fried cohort, so those rows
-are smaller.
+class. Rows and row order follow the manuscript template. Every variable here is complete in
+the source file, so there is no missing-data column.
 
-- **Continuous rows** — mean (SD), or median [IQR] where marked by the row label’s units being
-  skewed (Charlson, CRP). Test: **Kruskal-Wallis** across the three classes.
+- **Continuous rows** — median [IQR], or mean (SD) where the row label says so. Test:
+  **Kruskal-Wallis** across the three classes.
 - **Categorical rows** — n (%) within each class. Test: **chi-square**, or **Fisher’s exact**
   (Monte Carlo, 20,000 replicates) when any expected count is below 5. A multi-level variable
-  carries one p-value on its header row.
+  carries one p-value, on its header row.
 
 ::: {.callout-warning}
 ## The Fried cohort is not a random subset
@@ -1979,6 +1989,32 @@ assessed, against 97–99 % of those 60 and over. The 592 are therefore older an
 cohort as a whole (mean age 69.1 vs 48.7 years, measured GFR 70.6 vs 91.8 mL/min/1.73 m²). Read
 this table as describing *who was assessed*, not as a sample of the 1,200.
 :::
+
+::: {.callout-important}
+## Seven cancer-site labels are still unmapped
+
+`site.ajcc` has exactly the 11 groups the template lists, but the source file ships **no
+codebook** for the codes. Four are fixed beyond doubt by their sex distribution and are
+labelled: **6 = Breast** (272, 98.9 % female), **7 = Female reproductive organs** (60, 100 %
+female), **11 = Male genital organs** (262, 0 % female) and **9 = Endocrine system** (39,
+84.6 % female — thyroid). The remaining seven cannot be told apart from the data alone, so
+they print as their code:
+
+| Code | n | % female | | Code | n | % female |
+|--:|--:|--:|---|--:|--:|--:|
+| 1 | 109 | 28.4 % | | 5 | 54 | 46.3 % |
+| 2 | 251 | 44.6 % | | 8 | 82 | 34.1 % |
+| 3 | 34 | 41.2 % | | 10 | 10 | 40.0 % |
+| 4 | 27 | 48.1 % | | | | |
+
+Give me the mapping and it goes in one place — `SITE_LABS` in the data chunk.
+:::
+
+**Two codings were resolved against the data, not assumed.** `Smoking` is **not** in the
+intuitive order: checked against the file’s own `never./former./current.smoker` indicator
+columns, **1 is Current** (128 patients) and **2 is Former** (468), with 0 = Never (604).
+`stage` = 5 carries `stageV` for all 55 of its patients (and `TIS` for 43), which is the
+unstageable band the template calls *Not applicable*.
 
 ```{r}
 #| label: table1-fried
