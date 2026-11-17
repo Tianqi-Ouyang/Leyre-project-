@@ -73,6 +73,20 @@ emit_plots <- function(plots, fname,
   }
   print(doc, target = file.path(ppt_dir, paste0(fname, ".pptx")))
   cat(sprintf("\n\n[%s](../ppt/%s.pptx)\n\n", label, fname))
+  # Per-panel PNG downloads. knitr writes the inline figures of a chunk
+  # labelled `fname` to <fname>-1.png ... <fname>-n.png beside the page, so
+  # these point at the very files the reader is already looking at rather
+  # than writing a second copy of all 256 of them. The `download` attribute
+  # makes a click save the file instead of opening it.
+  # NB this holds only while every chunk's label equals the `fname` passed
+  # here -- true for all 32 calls, and checked by the chunk below.
+  ttl <- vapply(plots, function(p)
+    tryCatch(if (is.null(p$labels$title)) "" else p$labels$title,
+             error = function(e) ""), "")
+  links <- paste(sprintf(
+    '<a href="dosing_heatmap_files/figure-html/%s-%d.png" download title="%s">%d</a>',
+    fname, seq_along(plots), ttl, seq_along(plots)), collapse = " \u00b7 ")
+  cat(sprintf("\U0001F5BC\uFE0F Download individual panels as PNG: %s\n\n", links))
 }
 
 # --- Two colouring schemes -------------------------------------------------
@@ -786,10 +800,11 @@ overlay_plot <- function(cl, eq, xvar = "egfr_pctdiff", xlab = PCTD_XLAB,
       # to the distribution rather than to the overdose line.
       axis.title.y.right = ggplot2::element_text(colour = CARBO_RED, size = 13),
       axis.text.y.right  = ggplot2::element_text(colour = CARBO_RED, size = 12),
-      # Horizontal rules dark enough to read a value off; verticals stay faint
-      # so they do not compete with them.
+      # Horizontal rules only, dark enough to read a value off. Every vertical
+      # gridline is gone; the one vertical mark left on these panels is the
+      # dashed reference line, which is data, not furniture.
       panel.grid.major.y = ggplot2::element_line(colour = "grey40", linewidth = 0.45),
-      panel.grid.major.x = ggplot2::element_line(colour = "grey85", linewidth = 0.3),
+      panel.grid.major.x = ggplot2::element_blank(),
       panel.grid.minor   = ggplot2::element_blank())
 }
 # Round a count up to a clean axis maximum, with ~15 % headroom so the tallest
@@ -836,8 +851,7 @@ bar_line_plot <- function(cl, eq, grpcol, xlab, drug_id = "carboplatin_b20") {
       x = xlab, title = ttl,
       subtitle = sprintf("Black line = %% overdosed (left axis) · bars = %% of cohort (right axis) · N = %s",
                          format(n_tot, big.mark = ","))) +
-    .overlay_theme() +
-    ggplot2::theme(panel.grid.major.x = ggplot2::element_blank())
+    .overlay_theme()   # verticals are already blank there
 }
 # X-axis for the measured-GFR LOESS set (the reference itself; indexed vs absolute).
 MGFR_XLAB_IDX <- "Measured GFR  (⁵¹Cr-EDTA, mL/min/1.73 m²)"
