@@ -771,13 +771,25 @@ overlay_plot <- function(cl, eq, xvar = "egfr_pctdiff", xlab = PCTD_XLAB,
 
 # Shared look for every panel in the "Carboplatin 20 % plots" section: pink
 # distribution on the right axis, black overdose series on the left.
+# Axis text, axis titles and the horizontal rules are deliberately dark and a
+# size up on theme_minimal's defaults. Left pale, they made the thick black
+# overdose line the only strong mark on the panel, which overstated it.
 .overlay_theme <- function() {
-  ggplot2::theme_minimal(base_size = 11) +
+  ggplot2::theme_minimal(base_size = 13) +
     ggplot2::theme(
-      plot.title         = ggplot2::element_text(face = "bold", size = 11),
-      plot.subtitle      = ggplot2::element_text(size = 9, colour = "grey30"),
-      axis.title.y.right = ggplot2::element_text(colour = CARBO_RED),
-      axis.text.y.right  = ggplot2::element_text(colour = CARBO_RED),
+      plot.title         = ggplot2::element_text(face = "bold", size = 13,
+                                                 colour = "grey10"),
+      plot.subtitle      = ggplot2::element_text(size = 10, colour = "grey25"),
+      axis.title         = ggplot2::element_text(colour = "grey10", size = 13),
+      axis.text          = ggplot2::element_text(colour = "grey10", size = 12),
+      # The right-hand axis keeps the bar colour: that is what ties the scale
+      # to the distribution rather than to the overdose line.
+      axis.title.y.right = ggplot2::element_text(colour = CARBO_RED, size = 13),
+      axis.text.y.right  = ggplot2::element_text(colour = CARBO_RED, size = 12),
+      # Horizontal rules dark enough to read a value off; verticals stay faint
+      # so they do not compete with them.
+      panel.grid.major.y = ggplot2::element_line(colour = "grey40", linewidth = 0.45),
+      panel.grid.major.x = ggplot2::element_line(colour = "grey85", linewidth = 0.3),
       panel.grid.minor   = ggplot2::element_blank())
 }
 # Round a count up to a clean axis maximum, with ~15 % headroom so the tallest
