@@ -692,6 +692,11 @@ PCTD_XLIM   <- c(-60, 30)
 PCTD_BREAKS <- seq(-80, 80, 10)   # spans the full data range; clipped panels drop the extras
 BINW        <- 5                  # histogram bin width, percentage points
 CARBO_RED   <- "#F8766D"          # ggplot's hue for the carboplatin ±20% line
+# Bars are drawn SOLID in this colour rather than as CARBO_RED at 55 % alpha.
+# At that alpha the horizontal rules read straight through them, and the wash
+# came out at #FBB4AF; this is a little darker and redder, and opaque, so the
+# rules stop where a bar starts.
+CARBO_FILL  <- "#F59C94"
 
 # Tick styling shared by every x axis in the carboplatin section: black ticks,
 # no minor grid. `pct` appends "%" to the labels — the absolute-difference
@@ -753,7 +758,7 @@ overlay_plot <- function(cl, eq, xvar = "egfr_pctdiff", xlab = PCTD_XLAB,
       data = data.frame(x = xall),
       ggplot2::aes(x, y = ggplot2::after_stat(count) / cnt_max * 100),
       binwidth = binw, boundary = 0,
-      fill = CARBO_RED, colour = "white", linewidth = 0.3, alpha = 0.55)
+      fill = CARBO_FILL, colour = "white", linewidth = 0.3)
   # `ref_at` draws a dashed vertical marker. No caller uses it any more --
   # every vertical line is off these panels -- but the hook is kept so one
   # can be put back at a given x without touching the function.
@@ -834,8 +839,8 @@ bar_line_plot <- function(cl, eq, grpcol, xlab, drug_id = "carboplatin_b20") {
 
   ggplot2::ggplot(agg, ggplot2::aes(x = as.integer(grp))) +
     ggplot2::geom_col(ggplot2::aes(y = pct_cohort / cnt_max * 100),
-                      fill = CARBO_RED, colour = "white", linewidth = 0.3,
-                      alpha = 0.55, width = 0.68) +
+                      fill = CARBO_FILL, colour = "white", linewidth = 0.3,
+                      width = 0.68) +
     ggplot2::geom_line(ggplot2::aes(y = pct_over), colour = "black", linewidth = 1.0) +
     ggplot2::geom_point(ggplot2::aes(y = pct_over), colour = "black", size = 2.2) +
     ggplot2::scale_x_continuous(breaks = seq_along(xl), labels = xl) +
