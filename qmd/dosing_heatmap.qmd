@@ -741,6 +741,22 @@ overlay_plot <- function(cl, eq, xvar = "egfr_pctdiff", xlab = PCTD_XLAB,
   n_tot <- length(xall)
   brks  <- seq(floor(min(xall) / binw) * binw, ceiling(max(xall) / binw) * binw, binw)
   cnt_max <- .nice_max(max(graphics::hist(xall, breaks = brks, plot = FALSE)$counts))
+  # Bars are drawn only for the bins the panel actually shows. `coord_cartesian`
+  # clips, it does not drop, so the off-panel bars stayed in the grob: invisible
+  # on the PNG, but rvg::dml still wrote a shape for each one, with non-finite
+  # transformed coordinates serialised as the INT32 bounds (NA_integer_ is
+  # -2147483648). A negative <a:ext cx>/<cy> violates ST_PositiveCoordinate, so
+  # PowerPoint called the deck damaged, and the repaired graphic collapsed as
+  # soon as it was moved. Trimming to whole bins that meet the window leaves
+  # every visible bar exactly as it was; `n_tot` and `cnt_max` are still taken
+  # from the full data above, so the subtitle N and the right-hand count axis
+  # do not move. Bins are right-closed, hence `>` on the low edge. NB the
+  # window to keep is the *expanded* one: coord_cartesian() applies the scale's
+  # default 5% expansion to `xlim`, so the bins just outside it are still on
+  # screen -- for the muscle-Z panel that 5% is exactly one bin wide.
+  xpad <- 0.05 * diff(xlim)
+  xwin <- xall[xall >  floor((xlim[1] - xpad) / binw)   * binw &
+               xall <= ceiling((xlim[2] + xpad) / binw) * binw]
 
   d <- cl %>%
     dplyr::filter(equation == eq, drug == drug_id, !is.na(cls), !is.na(.data[[xvar]])) %>%
@@ -755,7 +771,7 @@ overlay_plot <- function(cl, eq, xvar = "egfr_pctdiff", xlab = PCTD_XLAB,
 
   p <- ggplot2::ggplot() +
     ggplot2::geom_histogram(
-      data = data.frame(x = xall),
+      data = data.frame(x = xwin),
       ggplot2::aes(x, y = ggplot2::after_stat(count) / cnt_max * 100),
       binwidth = binw, boundary = 0,
       fill = CARBO_FILL, colour = "white", linewidth = 0.3)
@@ -2085,3 +2101,36 @@ cat("[📄 Download Table 1 as Word](../tables/heatmap/table1_fried592.docx)\n\n
   at low BMI / low muscle mass); cystatin-based equations tend to **underdose**.
 - **Counterfactual.** No administered doses exist in this file, so every drug rule is applied to all
   1,200 patients to estimate misclassification rates, not actual prescribing errors.
+
+## PowerPoint integrity check
+
+Every `.pptx` on this page is written by `rvg::dml()` as editable vector shapes. A shape whose
+`<a:ext>` carries a **negative** `cx`/`cy` is invalid under the OOXML schema
+(`ST_PositiveCoordinate` is non-negative): PowerPoint reports the deck as damaged, and the
+repaired graphic collapses when it is moved. `rvg` emits one for any grob lying wholly outside
+the panel that `coord_cartesian()` clips to, which the PNG device simply does not draw --- so the
+fault is invisible on this page and only shows up on download. This check re-reads the emitted
+files, so a future plot that reintroduces it fails here rather than in someone's slide deck.
+
+```{r}
+#| label: pptx-check
+#| echo: false
+#| results: asis
+.pptx_bad <- function(f) {
+  d <- file.path(tempdir(), "pptxchk"); unlink(d, recursive = TRUE)
+  suppressWarnings(utils::unzip(f, exdir = d))
+  sl <- list.files(file.path(d, "ppt", "slides"), "\\.xml$", full.names = TRUE)
+  sum(vapply(sl, function(q) {
+    x <- paste(readLines(q, warn = FALSE), collapse = "")
+    e <- regmatches(x, gregexpr('<a:ext cx="-?[0-9]+" cy="-?[0-9]+"/>', x))[[1]]
+    sum(grepl('"-', e))
+  }, integer(1)))
+}
+.pf   <- sort(list.files(ppt_dir, "\\.pptx$", full.names = TRUE))
+.nbad <- vapply(.pf, .pptx_bad, integer(1))
+cat(sprintf("**%d decks checked — %d invalid shape(s) in %d file(s).**\n\n",
+            length(.pf), sum(.nbad), sum(.nbad > 0)))
+if (any(.nbad > 0))
+  cat(paste0("- `", basename(.pf)[.nbad > 0], "` — ", .nbad[.nbad > 0],
+             " invalid shape(s)\n"), sep = "")
+```
